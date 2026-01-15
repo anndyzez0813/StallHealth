@@ -2,13 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>StallHealth Cyber TCM | 赛博中医</title>
+    <meta name="description" content="赛博中医 - 您的数字化健康顾问">
+    
+    <!-- PWA 配置 -->
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2964/2964514.png">
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 配置 Tailwind 主题色 (与原代码保持一致) -->
+    <!-- 配置 Tailwind 主题色 -->
     <script>
         tailwind.config = {
             theme: {
@@ -22,6 +30,7 @@
                     },
                     animation: {
                         fadeIn: 'fadeIn 0.5s ease-out forwards',
+                        pulseSlow: 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
                         fadeIn: {
@@ -37,7 +46,7 @@
     <!-- 引入 Babel 用于在浏览器中解析 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- Import Map: 告诉浏览器如何解析 import 语句 -->
+    <!-- Import Map -->
     <script type="importmap">
     {
       "imports": {
@@ -55,30 +64,48 @@
             color: #e5e7eb;
             margin: 0;
             padding: 0;
+            overscroll-behavior-y: none; /* 防止下拉刷新效果，更像App */
         }
         /* 滚动条样式 */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #00FF41; }
+        
+        /* 针对 iOS PWA 的特殊处理 */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                /* padding-top: env(safe-area-inset-top); */
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- PWA Service Worker 注册脚本 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+
     <!-- 主程序逻辑 -->
-    <!-- data-type="module" 允许我们在 Babel 脚本中使用 import -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout } from 'lucide-react';
+        import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout, Smartphone } from 'lucide-react';
 
-        /**
-         * ==========================================
-         * DATA ASSETS & CONFIGURATION
-         * ==========================================
-         */
-
+        // ... existing code (Data Assets) ...
         // 1. The Golden Soup Database (Menu)
         const goldenSoupMenu = [
           {
@@ -413,6 +440,34 @@
           const [isMember, setIsMember] = useState(false);
           const [memberId, setMemberId] = useState('');
           const [isLoading, setIsLoading] = useState(false);
+          const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+          // PWA Install Prompt Listener
+          useEffect(() => {
+            const handler = (e) => {
+              // Prevent the mini-infobar from appearing on mobile
+              e.preventDefault();
+              // Stash the event so it can be triggered later.
+              setDeferredPrompt(e);
+            };
+            window.addEventListener('beforeinstallprompt', handler);
+            return () => window.removeEventListener('beforeinstallprompt', handler);
+          }, []);
+
+          const handleInstallClick = () => {
+             if (!deferredPrompt) return;
+             // Show the install prompt
+             deferredPrompt.prompt();
+             // Wait for the user to respond to the prompt
+             deferredPrompt.userChoice.then((choiceResult) => {
+               if (choiceResult.outcome === 'accepted') {
+                 console.log('User accepted the install prompt');
+               } else {
+                 console.log('User dismissed the install prompt');
+               }
+               setDeferredPrompt(null);
+             });
+          };
 
           // State: Full Data Model
           const [formData, setFormData] = useState({
@@ -597,12 +652,22 @@
                 <div className="space-y-3">
                   <BrandLogo size="text-6xl" center={true} />
                   <div className="flex items-center justify-center gap-4 opacity-80">
-                     <div className="h-[1px] w-12 bg-neon-green/50"></div>
-                     <p className="text-xs uppercase tracking-[0.4em] font-bold text-gray-400">赛博中医 | CYBER TCM</p>
-                     <div className="h-[1px] w-12 bg-neon-green/50"></div>
+                      <div className="h-[1px] w-12 bg-neon-green/50"></div>
+                      <p className="text-xs uppercase tracking-[0.4em] font-bold text-gray-400">赛博中医 | CYBER TCM</p>
+                      <div className="h-[1px] w-12 bg-neon-green/50"></div>
                   </div>
                 </div>
                 
+                {/* PWA Install Button - Only shows when install is available */}
+                {deferredPrompt && (
+                   <button 
+                     onClick={handleInstallClick}
+                     className="mx-auto flex items-center bg-zinc-800 hover:bg-zinc-700 text-neon-green border border-neon-green/30 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all animate-pulseSlow"
+                   >
+                     <Smartphone size={14} className="mr-2" /> Install App To Device
+                   </button>
+                )}
+
                 <div className="bg-zinc-900/80 border border-zinc-800 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
                   <div className="flex gap-2">
                     <button onClick={() => handleModeToggle('online')} className={`flex-1 flex items-center justify-center py-4 rounded-xl text-sm font-bold transition-all duration-300 ${mode === 'online' ? 'bg-neon-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>
@@ -639,6 +704,7 @@
             </div>
           );
 
+          // ... existing code (renderWizard, renderReport) ...
           const renderWizard = () => (
             <div className="min-h-screen bg-zinc-950 text-gray-200 flex flex-col font-sans">
               <div className="border-b border-gray-800 p-4 flex justify-between items-center bg-black sticky top-0 z-20">
@@ -655,8 +721,8 @@
                 {wizardStep === 1 && (
                   <div className="space-y-6 animate-fadeIn pb-20">
                     <div className="flex items-center gap-3 mb-6">
-                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">I. 个人信息 / Identity</h2>
+                        <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                        <h2 className="text-xl font-bold text-white tracking-tight uppercase">I. 个人信息 / Identity</h2>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -741,8 +807,8 @@
                 {wizardStep === 2 && (
                   <div className="space-y-8 animate-fadeIn pb-20">
                     <div className="flex items-center gap-3 mb-6">
-                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">II. 体征信息 / Vital Signs</h2>
+                        <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                        <h2 className="text-xl font-bold text-white tracking-tight uppercase">II. 体征信息 / Vital Signs</h2>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -953,8 +1019,8 @@
                 {wizardStep === 3 && (
                   <div className="space-y-8 animate-fadeIn pb-20">
                     <div className="flex items-center gap-3 mb-4">
-                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">III. 体感信息 / Somatic</h2>
+                        <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                        <h2 className="text-xl font-bold text-white tracking-tight uppercase">III. 体感信息 / Somatic</h2>
                     </div>
                     <p className="text-gray-500 text-xs uppercase tracking-widest mb-6 border-b border-zinc-900 pb-4">Select all relevant sensors in your biological shell:</p>
 
@@ -1008,303 +1074,303 @@
           );
 
           const renderReport = () => {
-            if (!report) return null;
-
-            // Golden Soup Data & Prescription Data
-            const soup = report.soup;
-            const rx = report.prescription;
-            const isYunnan = easterEggActive;
-            
-            // Organ Labels for Hexagon
-            const organLabels = [
-              { name: "心/循环", en: "Heart", pos: "top-2 left-1/2 -translate-x-1/2" },
-              { name: "肝/情绪", en: "Liver", pos: "top-[25%] right-2" },
-              { name: "脾胃/消化", en: "Spleen", pos: "bottom-[25%] right-2" },
-              { name: "肺/呼吸", en: "Lung", pos: "bottom-2 left-1/2 -translate-x-1/2" },
-              { name: "肾/生殖", en: "Kidney", pos: "bottom-[25%] left-2" },
-              { name: "肠道/排毒", en: "Intestine", pos: "top-[25%] left-2" },
-            ];
-
-            // Detailed Organ Analysis Data
-            const organDetails = [
-              { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], color: "text-red-400", bar: "bg-red-500" },
-              { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], color: "text-green-400", bar: "bg-green-500" },
-              { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
-              { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
-              { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
-              { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
-            ];
-
-            return (
-              <div className="min-h-screen bg-black text-gray-200 p-4 md:p-8 font-sans">
-                
-                {/* REPORT HEADER */}
-                <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-800 pb-4">
-                  <div className="mb-4 md:mb-0">
-                    <h1 className="text-3xl font-bold text-white mb-1">DIAGNOSTIC REPORT</h1>
-                    <p className="text-xs text-neon-green font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} // {report.timestamp}</p>
-                  </div>
-                  <div className="text-left md:text-right">
-                    <p className="text-sm text-gray-500">StallHealth v2.3 (Full Spectrum)</p>
-                    <p className="text-xs text-gray-600">{mode.toUpperCase()} MODE</p>
-                  </div>
-                </div>
-
-                <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
-                  
-                  {/* LEFT COLUMN: DIAGNOSIS & RADAR */}
-                  <div className="space-y-6">
-                    
-                    {/* --- NEW: HEXAGON RADAR CHART --- */}
-                    <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg relative overflow-hidden">
-                       <h2 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center">
-                         <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
-                       </h2>
-                       
-                       <div className="w-full aspect-square relative flex items-center justify-center mb-4">
-                         {/* Hexagon Background Grid */}
-                         <svg viewBox="0 0 100 100" className="w-full h-full absolute">
-                             <polygon points={getHexPolygon([100,100,100,100,100,100], 40, 50, 50)} fill="none" stroke="#333" strokeWidth="0.5" />
-                             <polygon points={getHexPolygon([75,75,75,75,75,75], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
-                             <polygon points={getHexPolygon([50,50,50,50,50,50], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="50" y2="10" stroke="#333" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="84.6" y2="30" stroke="#333" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="84.6" y2="70" stroke="#333" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="50" y2="90" stroke="#333" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="15.4" y2="70" stroke="#333" strokeWidth="0.5" />
-                             <line x1="50" y1="50" x2="15.4" y2="30" stroke="#333" strokeWidth="0.5" />
-                             
-                             {/* Data Polygon */}
-                             <polygon 
-                               points={getHexPolygon(report.radarData, 40, 50, 50)} 
-                               fill="rgba(0, 255, 65, 0.2)" 
-                               stroke="#00FF41" 
-                               strokeWidth="1.5"
-                             />
-                             {/* Data Points */}
-                             {report.radarData.map((val, i) => {
-                               const angle = i * (Math.PI / 3) - Math.PI / 2;
-                               const r = (val / 100) * 40;
-                               const x = 50 + Math.cos(angle) * r;
-                               const y = 50 + Math.sin(angle) * r;
-                               return <circle key={i} cx={x} cy={y} r="1.5" fill="#fff" />;
-                             })}
-                         </svg>
-
-                         {/* Labels */}
-                         {organLabels.map((l, i) => (
-                           <div key={i} className={`absolute ${l.pos} text-center`}>
-                             <span className="block text-[10px] text-gray-300 font-bold">{l.name}</span>
-                             <span className="block text-[8px] text-gray-600 uppercase">{l.en}</span>
-                           </div>
-                         ))}
-                       </div>
-                       
-                       <h2 className="text-2xl text-neon-green font-bold mb-2">{report.diagnosisTitle}</h2>
-                       <p className="text-sm text-gray-400 leading-relaxed mb-4">
-                         {report.diagnosisDesc}
-                       </p>
-                    </div>
-
-                    {/* --- NEW: DETAILED ORGAN ANALYSIS --- */}
-                    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
-                       <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase flex items-center">
-                         <Layout size={14} className="mr-1"/> 脏腑功能详析 (Visceral Analysis)
-                       </h3>
-                       <div className="space-y-4">
-                         {organDetails.map((organ, idx) => (
-                           <div key={idx}>
-                             <div className="flex justify-between text-xs mb-1">
-                               <span className={`font-bold ${organ.color}`}>{organ.name}</span>
-                               <span className="text-gray-500">{organ.score}/100</span>
+             if (!report) return null;
+             // ... existing report code ...
+             // Golden Soup Data & Prescription Data
+             const soup = report.soup;
+             const rx = report.prescription;
+             const isYunnan = easterEggActive;
+             
+             // Organ Labels for Hexagon
+             const organLabels = [
+               { name: "心/循环", en: "Heart", pos: "top-2 left-1/2 -translate-x-1/2" },
+               { name: "肝/情绪", en: "Liver", pos: "top-[25%] right-2" },
+               { name: "脾胃/消化", en: "Spleen", pos: "bottom-[25%] right-2" },
+               { name: "肺/呼吸", en: "Lung", pos: "bottom-2 left-1/2 -translate-x-1/2" },
+               { name: "肾/生殖", en: "Kidney", pos: "bottom-[25%] left-2" },
+               { name: "肠道/排毒", en: "Intestine", pos: "top-[25%] left-2" },
+             ];
+ 
+             // Detailed Organ Analysis Data
+             const organDetails = [
+               { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], color: "text-red-400", bar: "bg-red-500" },
+               { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], color: "text-green-400", bar: "bg-green-500" },
+               { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
+               { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
+               { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
+               { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
+             ];
+ 
+             return (
+               <div className="min-h-screen bg-black text-gray-200 p-4 md:p-8 font-sans">
+                 
+                 {/* REPORT HEADER */}
+                 <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-800 pb-4">
+                   <div className="mb-4 md:mb-0">
+                     <h1 className="text-3xl font-bold text-white mb-1">DIAGNOSTIC REPORT</h1>
+                     <p className="text-xs text-neon-green font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} // {report.timestamp}</p>
+                   </div>
+                   <div className="text-left md:text-right">
+                     <p className="text-sm text-gray-500">StallHealth v2.3 (Full Spectrum)</p>
+                     <p className="text-xs text-gray-600">{mode.toUpperCase()} MODE</p>
+                   </div>
+                 </div>
+ 
+                 <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
+                   
+                   {/* LEFT COLUMN: DIAGNOSIS & RADAR */}
+                   <div className="space-y-6">
+                     
+                     {/* --- NEW: HEXAGON RADAR CHART --- */}
+                     <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg relative overflow-hidden">
+                        <h2 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center">
+                          <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
+                        </h2>
+                        
+                        <div className="w-full aspect-square relative flex items-center justify-center mb-4">
+                          {/* Hexagon Background Grid */}
+                          <svg viewBox="0 0 100 100" className="w-full h-full absolute">
+                              <polygon points={getHexPolygon([100,100,100,100,100,100], 40, 50, 50)} fill="none" stroke="#333" strokeWidth="0.5" />
+                              <polygon points={getHexPolygon([75,75,75,75,75,75], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
+                              <polygon points={getHexPolygon([50,50,50,50,50,50], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="50" y2="10" stroke="#333" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="84.6" y2="30" stroke="#333" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="84.6" y2="70" stroke="#333" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="50" y2="90" stroke="#333" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="15.4" y2="70" stroke="#333" strokeWidth="0.5" />
+                              <line x1="50" y1="50" x2="15.4" y2="30" stroke="#333" strokeWidth="0.5" />
+                              
+                              {/* Data Polygon */}
+                              <polygon 
+                                points={getHexPolygon(report.radarData, 40, 50, 50)} 
+                                fill="rgba(0, 255, 65, 0.2)" 
+                                stroke="#00FF41" 
+                                strokeWidth="1.5"
+                              />
+                              {/* Data Points */}
+                              {report.radarData.map((val, i) => {
+                                const angle = i * (Math.PI / 3) - Math.PI / 2;
+                                const r = (val / 100) * 40;
+                                const x = 50 + Math.cos(angle) * r;
+                                const y = 50 + Math.sin(angle) * r;
+                                return <circle key={i} cx={x} cy={y} r="1.5" fill="#fff" />;
+                              })}
+                           </svg>
+ 
+                           {/* Labels */}
+                           {organLabels.map((l, i) => (
+                             <div key={i} className={`absolute ${l.pos} text-center`}>
+                               <span className="block text-[10px] text-gray-300 font-bold">{l.name}</span>
+                               <span className="block text-[8px] text-gray-600 uppercase">{l.en}</span>
                              </div>
-                             <div className="w-full bg-black rounded-full h-1.5 mb-1">
-                               <div className={`${organ.bar} h-1.5 rounded-full`} style={{ width: `${organ.score}%` }}></div>
+                           ))}
+                        </div>
+                        
+                        <h2 className="text-2xl text-neon-green font-bold mb-2">{report.diagnosisTitle}</h2>
+                        <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                          {report.diagnosisDesc}
+                        </p>
+                     </div>
+ 
+                     {/* --- NEW: DETAILED ORGAN ANALYSIS --- */}
+                     <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
+                        <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase flex items-center">
+                          <Layout size={14} className="mr-1"/> 脏腑功能详析 (Visceral Analysis)
+                        </h3>
+                        <div className="space-y-4">
+                          {organDetails.map((organ, idx) => (
+                            <div key={idx}>
+                              <div className="flex justify-between text-xs mb-1">
+                                <span className={`font-bold ${organ.color}`}>{organ.name}</span>
+                                <span className="text-gray-500">{organ.score}/100</span>
+                              </div>
+                              <div className="w-full bg-black rounded-full h-1.5 mb-1">
+                                <div className={`${organ.bar} h-1.5 rounded-full`} style={{ width: `${organ.score}%` }}></div>
+                              </div>
+                              <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                     </div>
+ 
+                     {/* LBS PHARMACY (MOCK) */}
+                     <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
+                        <h3 className="text-sm text-gray-500 mb-3 flex items-center"><MapPin size={14} className="mr-1"/> 推荐药房 (LBS)</h3>
+                        <div className="bg-gray-800 h-24 w-full rounded mb-2 flex items-center justify-center text-xs text-gray-600">
+                          [地图组件: 已定位至 {formData.location || '当前城市'}]
+                        </div>
+                        <div className="text-xs text-white">
+                          <p className="font-bold">同仁堂 ({formData.location}分店)</p>
+                          <p className="text-gray-500">预估距离: 2.4km | 参考价: ¥45-60/剂</p>
+                        </div>
+                     </div>
+                   </div>
+ 
+                   {/* MIDDLE & RIGHT: PRESCRIPTION & DIET */}
+                   <div className="lg:col-span-2 space-y-8">
+                     
+                     {/* HERBAL PRESCRIPTION (DETAILED) */}
+                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                        <div className="flex justify-between items-start mb-6">
+                          <h3 className="text-white font-bold text-lg flex items-center">
+                            <LeafIcon className="mr-2 text-neon-green" /> 
+                            StallHealth 专属方剂
+                          </h3>
+                          <div className="text-right">
+                            <p className="text-neon-green font-bold text-sm">{rx.name}</p>
+                            <p className="text-xs text-gray-500">源自：{rx.source}</p>
+                          </div>
+                        </div>
+ 
+                        {/* Herb Table */}
+                        <div className="overflow-x-auto mb-6">
+                          <table className="w-full text-sm text-left text-gray-400">
+                            <thead className="text-xs text-gray-500 uppercase bg-zinc-800/50">
+                              <tr>
+                                <th className="px-3 py-2 rounded-l">药材 (Name)</th>
+                                <th className="px-3 py-2">部位 (Part)</th>
+                                <th className="px-3 py-2">剂量 (Dose)</th>
+                                <th className="px-3 py-2 rounded-r">功效/成分 (Effect)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rx.herbs.map((herb, idx) => (
+                                <tr key={idx} className="border-b border-zinc-800 hover:bg-zinc-800/30">
+                                  <td className="px-3 py-2 font-bold text-white flex items-center">
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-gray-300 mr-2 min-w-[24px] text-center">{herb.role}</span>
+                                    {herb.name}
+                                  </td>
+                                  <td className="px-3 py-2">{herb.part}</td>
+                                  <td className="px-3 py-2 text-neon-green">{herb.dose}</td>
+                                  <td className="px-3 py-2 text-xs">{herb.effect}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+ 
+                        {/* Instructions Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                           <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
+                             <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><FireIcon className="w-3 h-3 mr-1"/> 食用方式 (Method)</h4>
+                             <p className="text-sm text-gray-300">{rx.instructions.method}</p>
+                           </div>
+                           <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
+                             <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Clock className="w-3 h-3 mr-1"/> 频次与时间 (Freq)</h4>
+                             <p className="text-sm text-gray-300">{rx.instructions.frequency} <span className="text-gray-500">|</span> {rx.instructions.bestTime}</p>
+                           </div>
+                           <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50 md:col-span-2">
+                             <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Calendar className="w-3 h-3 mr-1"/> 食用周期 (Cycle)</h4>
+                             <p className="text-sm text-gray-300">{rx.instructions.cycle}</p>
+                           </div>
+                        </div>
+ 
+                        {/* Warnings */}
+                        <div className="space-y-3">
+                          <div className="flex items-start bg-yellow-900/10 p-3 rounded border border-yellow-700/30">
+                             <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 mt-0.5 shrink-0" />
+                             <div>
+                               <span className="text-yellow-500 font-bold text-xs block mb-1">药物副作用 (Side Effects)</span>
+                               <p className="text-xs text-gray-400">{rx.warnings.sideEffects}</p>
                              </div>
-                             <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
-                           </div>
-                         ))}
-                       </div>
-                    </div>
-
-                    {/* LBS PHARMACY (MOCK) */}
-                    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
-                       <h3 className="text-sm text-gray-500 mb-3 flex items-center"><MapPin size={14} className="mr-1"/> 推荐药房 (LBS)</h3>
-                       <div className="bg-gray-800 h-24 w-full rounded mb-2 flex items-center justify-center text-xs text-gray-600">
-                         [地图组件: 已定位至 {formData.location || '当前城市'}]
-                       </div>
-                       <div className="text-xs text-white">
-                         <p className="font-bold">同仁堂 ({formData.location}分店)</p>
-                         <p className="text-gray-500">预估距离: 2.4km | 参考价: ¥45-60/剂</p>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* MIDDLE & RIGHT: PRESCRIPTION & DIET */}
-                  <div className="lg:col-span-2 space-y-8">
-                    
-                    {/* HERBAL PRESCRIPTION (DETAILED) */}
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-                       <div className="flex justify-between items-start mb-6">
-                         <h3 className="text-white font-bold text-lg flex items-center">
-                           <LeafIcon className="mr-2 text-neon-green" /> 
-                           StallHealth 专属方剂
-                         </h3>
-                         <div className="text-right">
-                           <p className="text-neon-green font-bold text-sm">{rx.name}</p>
-                           <p className="text-xs text-gray-500">源自：{rx.source}</p>
-                         </div>
-                       </div>
-
-                       {/* Herb Table */}
-                       <div className="overflow-x-auto mb-6">
-                         <table className="w-full text-sm text-left text-gray-400">
-                           <thead className="text-xs text-gray-500 uppercase bg-zinc-800/50">
-                             <tr>
-                               <th className="px-3 py-2 rounded-l">药材 (Name)</th>
-                               <th className="px-3 py-2">部位 (Part)</th>
-                               <th className="px-3 py-2">剂量 (Dose)</th>
-                               <th className="px-3 py-2 rounded-r">功效/成分 (Effect)</th>
-                             </tr>
-                           </thead>
-                           <tbody>
-                             {rx.herbs.map((herb, idx) => (
-                               <tr key={idx} className="border-b border-zinc-800 hover:bg-zinc-800/30">
-                                 <td className="px-3 py-2 font-bold text-white flex items-center">
-                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-gray-300 mr-2 min-w-[24px] text-center">{herb.role}</span>
-                                   {herb.name}
-                                 </td>
-                                 <td className="px-3 py-2">{herb.part}</td>
-                                 <td className="px-3 py-2 text-neon-green">{herb.dose}</td>
-                                 <td className="px-3 py-2 text-xs">{herb.effect}</td>
-                               </tr>
-                             ))}
-                           </tbody>
-                         </table>
-                       </div>
-
-                       {/* Instructions Grid */}
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
-                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><FireIcon className="w-3 h-3 mr-1"/> 食用方式 (Method)</h4>
-                            <p className="text-sm text-gray-300">{rx.instructions.method}</p>
                           </div>
-                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
-                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Clock className="w-3 h-3 mr-1"/> 频次与时间 (Freq)</h4>
-                            <p className="text-sm text-gray-300">{rx.instructions.frequency} <span className="text-gray-500">|</span> {rx.instructions.bestTime}</p>
+                          <div className="flex items-start bg-red-900/10 p-3 rounded border border-red-700/30">
+                             <AlertTriangle className="w-4 h-4 text-red-500 mr-2 mt-0.5 shrink-0" />
+                             <div>
+                               <span className="text-red-500 font-bold text-xs block mb-1">食用禁忌 (Contraindications)</span>
+                               <p className="text-xs text-gray-400">
+                                 {rx.warnings.contraindications}
+                                 {formData.medication && <span className="block mt-1 text-red-400/80 font-bold">* 检测到您有服用其他药物历史，请务必间隔2小时以上服用中药。</span>}
+                               </p>
+                             </div>
                           </div>
-                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50 md:col-span-2">
-                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Calendar className="w-3 h-3 mr-1"/> 食用周期 (Cycle)</h4>
-                            <p className="text-sm text-gray-300">{rx.instructions.cycle}</p>
-                          </div>
-                       </div>
-
-                       {/* Warnings */}
-                       <div className="space-y-3">
-                         <div className="flex items-start bg-yellow-900/10 p-3 rounded border border-yellow-700/30">
-                            <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 mt-0.5 shrink-0" />
+                        </div>
+                     </div>
+ 
+                     {/* --- MASTER'S DIETARY SOLUTION (GOLDEN SOUP) --- */}
+                     <div className={`relative rounded-xl overflow-hidden border-2 transition-all duration-500 ${isYunnan ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.2)]'}`}>
+                        
+                        {/* Background Texture */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900 to-amber-900/20"></div>
+                        
+                        <div className="relative p-6 md:p-8">
+                          {/* Header Badge */}
+                          <div className="flex justify-between items-start mb-6">
                             <div>
-                              <span className="text-yellow-500 font-bold text-xs block mb-1">药物副作用 (Side Effects)</span>
-                              <p className="text-xs text-gray-400">{rx.warnings.sideEffects}</p>
+                              <h3 className="text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1">Master's Dietary Solution (主理人食疗方案)</h3>
+                              <h2 className="text-2xl md:text-3xl font-bold text-white font-serif">{soup.name}</h2>
+                              <p className="text-amber-200/80 font-serif italic mt-1">{soup.subtitle}</p>
                             </div>
-                         </div>
-                         <div className="flex items-start bg-red-900/10 p-3 rounded border border-red-700/30">
-                            <AlertTriangle className="w-4 h-4 text-red-500 mr-2 mt-0.5 shrink-0" />
+                            <div className="bg-amber-500/10 border border-amber-500/50 text-amber-400 px-3 py-1 rounded text-xs font-bold uppercase backdrop-blur-md">
+                               {soup.action}
+                            </div>
+                          </div>
+ 
+                          {/* The Copywrite */}
+                          <div className="mb-8 pl-4 border-l-2 border-amber-600/50">
+                             <p className="text-xl md:text-2xl text-gray-200 font-serif leading-relaxed italic">
+                               "{soup.tagline}"
+                             </p>
+                          </div>
+ 
+                          {/* Ingredients Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                             <div>
-                              <span className="text-red-500 font-bold text-xs block mb-1">食用禁忌 (Contraindications)</span>
-                              <p className="text-xs text-gray-400">
-                                {rx.warnings.contraindications}
-                                {formData.medication && <span className="block mt-1 text-red-400/80 font-bold">* 检测到您有服用其他药物历史，请务必间隔2小时以上服用中药。</span>}
-                              </p>
+                               <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">植萃语境 (Botanicals)</h4>
+                               <div className="flex flex-wrap gap-2">
+                                 {soup.ingredients.map((ing, i) => (
+                                   <span key={i} className="bg-black/50 text-amber-100 text-xs px-2 py-1 rounded border border-amber-900/30">
+                                     {ing}
+                                   </span>
+                                 ))}
+                               </div>
                             </div>
-                         </div>
-                       </div>
-                    </div>
-
-                    {/* --- MASTER'S DIETARY SOLUTION (GOLDEN SOUP) --- */}
-                    <div className={`relative rounded-xl overflow-hidden border-2 transition-all duration-500 ${isYunnan ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.2)]'}`}>
-                       
-                       {/* Background Texture */}
-                       <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900 to-amber-900/20"></div>
-                       
-                       <div className="relative p-6 md:p-8">
-                         {/* Header Badge */}
-                         <div className="flex justify-between items-start mb-6">
-                           <div>
-                             <h3 className="text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1">Master's Dietary Solution (主理人食疗方案)</h3>
-                             <h2 className="text-2xl md:text-3xl font-bold text-white font-serif">{soup.name}</h2>
-                             <p className="text-amber-200/80 font-serif italic mt-1">{soup.subtitle}</p>
-                           </div>
-                           <div className="bg-amber-500/10 border border-amber-500/50 text-amber-400 px-3 py-1 rounded text-xs font-bold uppercase backdrop-blur-md">
-                              {soup.action}
-                           </div>
-                         </div>
-
-                         {/* The Copywrite */}
-                         <div className="mb-8 pl-4 border-l-2 border-amber-600/50">
-                            <p className="text-xl md:text-2xl text-gray-200 font-serif leading-relaxed italic">
-                              "{soup.tagline}"
-                            </p>
-                         </div>
-
-                         {/* Ingredients Grid */}
-                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                           <div>
-                              <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">植萃语境 (Botanicals)</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {soup.ingredients.map((ing, i) => (
-                                  <span key={i} className="bg-black/50 text-amber-100 text-xs px-2 py-1 rounded border border-amber-900/30">
-                                    {ing}
-                                  </span>
-                                ))}
-                              </div>
-                           </div>
-                           <div>
-                              <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">匹配逻辑 (Source)</h4>
-                              <p className="text-xs text-gray-400">
-                                {soup.id === "GS_009" 
-                                  ? "基于品牌全时调和逻辑推荐。"
-                                  : `基于您的体感症状匹配: ${soup.symptoms.filter(s => formData.symptoms.includes(s)).join('、') || "当季时令匹配"}`
-                                }
-                              </p>
-                              {soup.id === "GS_009" && (
-                                <p className="text-[10px] text-amber-500 mt-2">*Based on the 24-Flavor Herbal Standard - The Soul of Stall.</p>
-                              )}
-                           </div>
-                         </div>
-
-                         {/* Easter Egg / Coupon */}
-                         {isYunnan && (
-                           <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded mb-6 flex items-center animate-pulse">
-                              <div className="mr-3 text-2xl">🦚</div>
-                              <div>
-                                <p className="text-purple-300 font-bold text-sm">LBS BONUS DETECTED</p>
-                                <p className="text-purple-200 text-xs">检测到同源气场（云南/弥勒）! 已赠送【Stall特饮券】一张。</p>
-                              </div>
-                           </div>
-                         )}
-
-                         {/* CTA */}
-                         <button className={`w-full py-4 font-bold text-black rounded flex items-center justify-center transition-all ${isYunnan ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400'}`}>
-                            {isYunnan ? '领取奖励 & 预订此汤' : 'ORDER THIS SOUP (预订)'} <ArrowRight className="ml-2" size={18} />
-                         </button>
-
-                       </div>
-                    </div>
-
-                    <div className="flex justify-center pt-8">
-                       <button 
-                         onClick={() => window.location.reload()}
-                         className="text-gray-500 hover:text-white text-sm flex items-center"
-                       >
-                         Start New Diagnosis
-                       </button>
-                    </div>
-
-                  </div>
-                </div>
-              </div>
-            );
+                            <div>
+                               <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">匹配逻辑 (Source)</h4>
+                               <p className="text-xs text-gray-400">
+                                 {soup.id === "GS_009" 
+                                   ? "基于品牌全时调和逻辑推荐。"
+                                   : `基于您的体感症状匹配: ${soup.symptoms.filter(s => formData.symptoms.includes(s)).join('、') || "当季时令匹配"}`
+                                 }
+                               </p>
+                               {soup.id === "GS_009" && (
+                                 <p className="text-[10px] text-amber-500 mt-2">*Based on the 24-Flavor Herbal Standard - The Soul of Stall.</p>
+                               )}
+                            </div>
+                          </div>
+ 
+                          {/* Easter Egg / Coupon */}
+                          {isYunnan && (
+                            <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded mb-6 flex items-center animate-pulse">
+                               <div className="mr-3 text-2xl">🦚</div>
+                               <div>
+                                 <p className="text-purple-300 font-bold text-sm">LBS BONUS DETECTED</p>
+                                 <p className="text-purple-200 text-xs">检测到同源气场（云南/弥勒）! 已赠送【Stall特饮券】一张。</p>
+                               </div>
+                            </div>
+                          )}
+ 
+                          {/* CTA */}
+                          <button className={`w-full py-4 font-bold text-black rounded flex items-center justify-center transition-all ${isYunnan ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400'}`}>
+                             {isYunnan ? '领取奖励 & 预订此汤' : 'ORDER THIS SOUP (预订)'} <ArrowRight className="ml-2" size={18} />
+                          </button>
+ 
+                        </div>
+                     </div>
+ 
+                     <div className="flex justify-center pt-8">
+                        <button 
+                          onClick={() => window.location.reload()}
+                          className="text-gray-500 hover:text-white text-sm flex items-center"
+                        >
+                          Start New Diagnosis
+                        </button>
+                     </div>
+ 
+                   </div>
+                 </div>
+               </div>
+             );
           };
 
           // --- Main Render Switch ---
