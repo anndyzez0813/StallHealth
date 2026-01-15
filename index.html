@@ -1,1316 +1,1344 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout } from 'lucide-react';
-
-/**
- * ==========================================
- * DATA ASSETS & CONFIGURATION
- * ==========================================
- */
-
-// 1. The Golden Soup Database (Menu)
-const goldenSoupMenu = [
-  {
-    id: "GS_001",
-    name: "金汤|壹号 (No.1 Golden Soup)",
-    subtitle: "[春分·寻芳]",
-    season: [2, 3, 4], 
-    symptoms: ["头疼", "头晕", "眩晕", "烦躁", "眼干", "眼涩", "视物模糊", "口苦", "Headache", "Dizziness"], 
-    ingredients: ["Mint Extract (薄荷萃取)", "Bergamot (佛手)", "Citron (香橼)"],
-    tagline: "一口春风，化开久违的舒畅。",
-    action: "疏理 (Regulate)"
-  },
-  {
-    id: "GS_002",
-    name: "金汤|贰号 (No.2 Golden Soup)",
-    subtitle: "[谷雨·雨后]",
-    season: [4, 5], 
-    symptoms: ["眼花", "鼻塞", "流涕", "打喷嚏", "咽喉干痒", "DryEyes", "WindHeat"],
-    ingredients: ["Mulberry Leaf (桑叶)", "Licorice (甘草)", "White Chrysanthemum (杭白菊)"],
-    tagline: "洗净微尘，还世界一片清亮。",
-    action: "清润 (Clear & Moist)"
-  },
-  {
-    id: "GS_003",
-    name: "金汤|叁号 (No.3 Golden Soup)",
-    subtitle: "[夏至·入禅]",
-    season: [5, 6, 7], 
-    symptoms: ["失眠", "口舌生疮", "心慌", "心悸", "盗汗", "Insomnia", "HeartPalpitations"],
-    ingredients: ["Lotus Plumule (莲子心)", "Lophatherum (淡竹叶)", "Ophiopogon (麦冬)"],
-    tagline: "窗外车马喧嚣，此处自生凉意。",
-    action: "入静 (Calm/Zen)"
-  },
-  {
-    id: "GS_004",
-    name: "金汤|肆号 (No.4 Golden Soup)",
-    subtitle: "[大暑·云端]",
-    season: [7, 8], 
-    symptoms: ["肢体乏力", "四肢沉重", "食欲不振", "恶心", "呕吐", "腹胀", "湿性眼屎", "Dampness"],
-    ingredients: ["Poria (茯苓)", "White Cardamom (白豆蔻)", "Patchouli (广藿香)"],
-    tagline: "像在云端漫步，带走积压的湿。",
-    action: "轻盈 (Lightness)"
-  },
-  {
-    id: "GS_005",
-    name: "金汤|伍号 (No.5 Golden Soup)",
-    subtitle: "[秋分·晨露]",
-    season: [8, 9, 10], 
-    symptoms: ["皮肤干裂", "皮肤瘙痒", "咽喉干痒", "口干舌燥", "DrySkin", "DryCough"],
-    ingredients: ["Lily Bulb (百合)", "Glehnia Root (北沙参)", "Polygonatum Odoratum (玉竹)"],
-    tagline: "为身体筑起一道抵御秋燥的屏障。",
-    action: "柔润 (Moisturize)"
-  },
-  {
-    id: "GS_006",
-    name: "金汤|陆号 (No.6 Golden Soup)",
-    subtitle: "[霜降·收敛]",
-    season: [10, 11], 
-    symptoms: ["注意力不集中", "记忆力下降", "脱发时头皮隐痛", "MildFatigue"],
-    ingredients: ["Dendrobium (石斛)", "Polygonatum (黄精)", "Goji Berry (枸杞子)"],
-    tagline: "在昼夜平分的时节，寻找平衡的力量。",
-    action: "平衡 (Balance)"
-  },
-  {
-    id: "GS_007",
-    name: "金汤|柒号 (No.7 Golden Soup)",
-    subtitle: "[冬至·暖阳]",
-    season: [11, 12, 1], 
-    symptoms: ["手脚冰凉", "怕冷", "胃疼", "冷痛", "腹泻", "ColdHandsFeet", "Chills"],
-    ingredients: ["Cinnamon (肉桂)", "Roasted Ginger (煨姜)", "Red Jujube (红枣)"],
-    tagline: "这一碗汤里，藏着冬日的阳光。",
-    action: "蓄能 (Warmth)"
-  },
-  {
-    id: "GS_008",
-    name: "金汤|捌号 (No.8 Golden Soup)",
-    subtitle: "[大寒·蓄势]",
-    season: [1, 2], 
-    symptoms: ["肢体乏力", "腰酸", "腰痛", "尿频尿急", "LowEnergy", "Weakness"],
-    ingredients: ["Ginseng <5yr (五年以下人参)", "Astragalus (黄芪)", "Cornus (山茱萸)"],
-    tagline: "于深寒处蓄势，静候春光破土。",
-    action: "固本 (Consolidate)"
-  },
-  {
-    id: "GS_009",
-    name: "金汤★玖号 (No.9 Golden Soup)",
-    subtitle: "[传世·金凤]",
-    season: [], 
-    symptoms: ["GeneralHealth", "FirstTimeVisitor", "HarmonyNeeded"],
-    ingredients: ["24-Flavor Herbal Mix (二十四味草本定标)", "Star Anise (八角)", "Tsaoko (草果)", "Clove (丁香)"],
-    tagline: "金汤点化，一味入神。山江山的灵魂所在。",
-    action: "调和 (Harmony)"
-  }
-];
-
-// 2. Full Symptom Tags - UPDATED
-const symptomOptions = {
-  head: [
-    { label: "头疼", value: "头疼" }, { label: "头晕", value: "头晕" }, { label: "眩晕", value: "眩晕" },
-    { label: "耳鸣", value: "耳鸣" }, { label: "耳闷", value: "耳闷" }, 
-    { label: "眼花", value: "眼花" }, { label: "眼干", value: "眼干" }, { label: "眼涩", value: "眼涩" }, { label: "视物模糊", value: "视物模糊" },
-    { label: "鼻塞", value: "鼻塞" }, { label: "流涕", value: "流涕" }, { label: "打喷嚏", value: "打喷嚏" },
-    { label: "咽喉干痒", value: "咽喉干痒" }, { label: "咽喉肿痛", value: "咽喉肿痛" },
-    { label: "口舌生疮", value: "口舌生疮" }, { label: "口干舌燥", value: "口干舌燥" }, { label: "口苦", value: "口苦" }, { label: "口臭", value: "口臭" },
-    { label: "牙龈肿痛", value: "牙龈肿痛" }, { label: "牙痛", value: "牙痛" },
-    { label: "偏头痛", value: "偏头痛" }, { label: "头皮发麻", value: "头皮发麻" }, { label: "脱发隐痛", value: "脱发时头皮隐痛" }
-  ],
-  torso: [
-    { label: "颈部僵硬", value: "颈部僵硬" }, { label: "落枕酸痛", value: "落枕酸痛" },
-    { label: "肩部酸胀", value: "肩部酸胀" }, { label: "背痛", value: "背痛" },
-    { label: "胸闷", value: "胸闷" }, { label: "心慌", value: "心慌" }, { label: "心悸", value: "心悸" }, { label: "胸口刺痛", value: "胸口刺痛" }, { label: "岔气", value: "岔气" },
-    { label: "腹胀", value: "腹胀" }, { label: "腹痛", value: "腹痛" }, { label: "胃疼", value: "胃疼" },
-    { label: "反酸", value: "反酸" }, { label: "烧心", value: "烧心" }, { label: "嗳气", value: "嗳气" }, { label: "打嗝", value: "打嗝" },
-    { label: "腹泻", value: "腹泻" }, { label: "便秘", value: "便秘" },
-    { label: "腰酸", value: "腰酸" }, { label: "腰痛", value: "腰痛" }, { label: "腰胀", value: "腰胀" }
-  ],
-  limbs: [
-    { label: "手麻", value: "手麻" }, { label: "脚麻", value: "脚麻" },
-    { label: "手脚冰凉", value: "手脚冰凉" }, { label: "手脚发热", value: "手脚发热" },
-    { label: "脚肿", value: "脚肿" }, { label: "腿肿", value: "腿肿" },
-    { label: "关节酸痛", value: "关节酸痛" }, { label: "肌肉酸痛", value: "肌肉酸痛" },
-    { label: "抽筋", value: "抽筋" }, { label: "痉挛", value: "痉挛" },
-    { label: "手指僵硬", value: "手指关节僵硬" }, { label: "足跟痛", value: "足跟痛" },
-    { label: "肢体乏力", value: "肢体乏力" }, { label: "四肢沉重", value: "四肢沉重" }
-  ],
-  skin: [
-    { label: "皮肤瘙痒", value: "皮肤瘙痒" }, { label: "皮肤干裂", value: "皮肤干裂" }, { label: "皮肤泛红", value: "皮肤泛红" },
-    { label: "皮肤刺痛", value: "皮肤刺痛" }, { label: "皮肤灼热", value: "皮肤灼热感" },
-    { label: "荨麻疹", value: "荨麻疹风团瘙痒" }, { label: "蚊虫红肿", value: "蚊虫叮咬红肿痒" },
-    { label: "痱子刺痒", value: "痱子刺痒" }, { label: "冻疮肿痛", value: "冻疮肿痛痒" },
-    { label: "脱皮", value: "脱皮" }, { label: "皮肤紧绷", value: "皮肤紧绷感" }
-  ],
-  general: [
-    { label: "失眠", value: "失眠" }, { label: "嗜睡", value: "嗜睡" },
-    { label: "乏力", value: "乏力" }, { label: "疲劳", value: "疲劳" },
-    { label: "烦躁", value: "烦躁" }, { label: "心慌", value: "心慌" },
-    { label: "盗汗", value: "盗汗" }, { label: "自汗", value: "自汗" },
-    { label: "怕冷", value: "怕冷" }, { label: "怕热", value: "怕热" },
-    { label: "食欲不振", value: "食欲不振" }, { label: "恶心", value: "恶心" }, { label: "呕吐", value: "呕吐" },
-    { label: "注意力不集中", value: "注意力不集中" }, { label: "记忆力下降", value: "记忆力下降" }
-  ]
-};
-
-const prescriptionDatabase = {
-  "QiDeficiency": {
-    name: "加味补中益气汤",
-    source: "《脾胃论》加减",
-    herbs: [
-      { name: "生黄芪", part: "根茎", role: "君", dose: "30g", effect: "补中益气，升阳举陷" },
-      { name: "党参", part: "根", role: "臣", dose: "15g", effect: "补脾肺气，生津养血" },
-      { name: "炒白术", part: "根茎", role: "臣", dose: "10g", effect: "健脾益气，燥湿利水" },
-      { name: "当归", part: "根", role: "佐", dose: "10g", effect: "补血活血，调经止痛" },
-      { name: "陈皮", part: "果皮", role: "佐", dose: "6g", effect: "理气健脾，燥湿化痰" },
-      { name: "升麻", part: "根茎", role: "使", dose: "6g", effect: "升举阳气，清热解毒" },
-      { name: "柴胡", part: "根", role: "使", dose: "6g", effect: "疏肝解郁，升阳举陷" },
-      { name: "炙甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药，补脾益气" }
-    ],
-    instructions: {
-      method: "水煎服。先武火（大火）煮沸，后文火（小火）煎煮30分钟，取汁约400ml。",
-      frequency: "每日1剂，分早晚2次温服。",
-      cycle: "7天为一个疗程，建议连续服用2个疗程后复诊。",
-      bestTime: "饭后1小时服用为宜。"
-    },
-    warnings: {
-      sideEffects: "部分人群服用后可能出现腹胀或口干，属正常现象，可适当减少黄芪用量。",
-      contraindications: "感冒发热期间停服；阴虚火旺者（表现为手脚心热、盗汗）慎用；高血压患者请遵医嘱服用。"
-    }
-  },
-  "YangDeficiency": {
-    name: "附子理中丸化裁",
-    source: "《太平惠民和剂局方》化裁",
-    herbs: [
-      { name: "制附子", part: "侧根", role: "君", dose: "10g", effect: "回阳救逆，补火助阳（需先煎30分钟）" },
-      { name: "干姜", part: "根茎", role: "臣", dose: "10g", effect: "温中散寒，回阳通脉" },
-      { name: "党参", part: "根", role: "臣", dose: "15g", effect: "补中益气" },
-      { name: "炒白术", part: "根茎", role: "佐", dose: "10g", effect: "健脾燥湿" },
-      { name: "炙甘草", part: "根", role: "使", dose: "6g", effect: "温中补虚，调和药性" }
-    ],
-    instructions: {
-      method: "水煎服。注意：制附子必须先单独煎煮30-60分钟，至口尝无麻舌感后，再放入其他药物同煮。",
-      frequency: "每日1剂，早晚温服。",
-      cycle: "5天为一个疗程，症状缓解即止，不宜久服。",
-      bestTime: "饭后服用，减少对胃肠刺激。"
-    },
-    warnings: {
-      sideEffects: "如出现口舌发麻、心慌、恶心等症状，请立即停止服用并就医（附子中毒征兆）。",
-      contraindications: "孕妇禁用；阴虚阳亢者禁用；有实热症状者（咽喉肿痛、便秘尿黄）禁用。"
-    }
-  },
-  "LiverFire": {
-    name: "丹栀逍遥散加减",
-    source: "《内科摘要》",
-    herbs: [
-      { name: "牡丹皮", part: "根皮", role: "臣", dose: "10g", effect: "清热凉血，活血散瘀" },
-      { name: "焦栀子", part: "果实", role: "臣", dose: "10g", effect: "泻火除烦，清热利湿" },
-      { name: "柴胡", part: "根", role: "君", dose: "10g", effect: "疏肝解郁" },
-      { name: "白芍", part: "根", role: "臣", dose: "15g", effect: "养血柔肝，缓急止痛" },
-      { name: "当归", part: "根", role: "佐", dose: "10g", effect: "养血和血" },
-      { name: "茯苓", part: "菌核", role: "佐", dose: "15g", effect: "健脾宁心" },
-      { name: "薄荷", part: "地上部分", role: "使", dose: "3g", effect: "疏散风热（后下）" }
-    ],
-    instructions: {
-      method: "水煎服。薄荷含挥发油，需在关火前5分钟放入。",
-      frequency: "每日1剂，早晚分服。",
-      cycle: "7天为一个疗程。",
-      bestTime: "餐后服用。"
-    },
-    warnings: {
-      sideEffects: "长期服用可能苦寒伤胃，致食欲减退。",
-      contraindications: "脾胃虚寒、大便溏泄者慎用；孕妇慎用。"
-    }
-  },
-  "PhlegmDamp": {
-    name: "二陈汤合三子养亲汤",
-    source: "《太平惠民和剂局方》",
-    herbs: [
-      { name: "法半夏", part: "块茎", role: "君", dose: "10g", effect: "燥湿化痰，降逆止呕" },
-      { name: "陈皮", part: "果皮", role: "臣", dose: "10g", effect: "理气健脾，燥湿化痰" },
-      { name: "茯苓", part: "菌核", role: "佐", dose: "15g", effect: "渗湿利水，宁心安神" },
-      { name: "莱菔子", part: "种子", role: "佐", dose: "10g", effect: "消食除胀，降气化痰" },
-      { name: "白芥子", part: "种子", role: "佐", dose: "6g", effect: "温肺化痰，利气散结" },
-      { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药" }
-    ],
-    instructions: {
-      method: "水煎服。",
-      frequency: "每日1剂，分2次服用。",
-      cycle: "7-14天为一个疗程。",
-      bestTime: "饭后服用。"
-    },
-    warnings: {
-      sideEffects: "可能出现口干，多饮水即可。",
-      contraindications: "阴虚燥咳、咳血者禁用。"
-    }
-  },
-  "Restless": {
-    name: "酸枣仁汤加减",
-    source: "《金匮要略》",
-    herbs: [
-      { name: "炒酸枣仁", part: "种子", role: "君", dose: "20g", effect: "养心补肝，宁心安神（捣碎先煎）" },
-      { name: "茯神", part: "菌核", role: "臣", dose: "15g", effect: "宁心安神" },
-      { name: "知母", part: "根茎", role: "佐", dose: "10g", effect: "滋阴清热" },
-      { name: "川芎", part: "根茎", role: "佐", dose: "6g", effect: "活血行气" },
-      { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和药性" }
-    ],
-    instructions: {
-      method: "水煎服。酸枣仁建议捣碎后先煮20分钟，利于有效成分析出。",
-      frequency: "每日1剂，睡前1小时温服。",
-      cycle: "14天为一个疗程。",
-      bestTime: "睡前服用效果最佳。"
-    },
-    warnings: {
-      sideEffects: "极少数人服用后可能出现嗜睡或轻微头晕。",
-      contraindications: "实热火盛所致失眠者慎用；孕妇慎用。"
-    }
-  },
-  "Balanced": {
-    name: "四君子汤（轻身版）",
-    source: "《太平惠民和剂局方》",
-    herbs: [
-      { name: "党参", part: "根", role: "君", dose: "10g", effect: "补中益气" },
-      { name: "白术", part: "根茎", role: "臣", dose: "10g", effect: "健脾燥湿" },
-      { name: "茯苓", part: "菌核", role: "佐", dose: "10g", effect: "健脾宁心" },
-      { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药" }
-    ],
-    instructions: {
-      method: "水煎代茶饮。",
-      frequency: "每周2-3次。",
-      cycle: "长期保养。",
-      bestTime: "日间服用。"
-    },
-    warnings: {
-      sideEffects: "性质平和，一般无副作用。",
-      contraindications: "感冒发热、咽喉肿痛时暂停服用。"
-    }
-  }
-};
-
-const calculateBMI = (height, weight) => {
-  if (!height || !weight) return 0;
-  const hInM = height / 100;
-  return (weight / (hInM * hInM)).toFixed(1);
-};
-
-const getTCMHour = (timeStr) => {
-  if (!timeStr) return "";
-  // TCM Hour mapping for reference display
-  const map = {
-    "23:00-01:00": "子时 (胆经)", "01:00-03:00": "丑时 (肝经)", "03:00-05:00": "寅时 (肺经)",
-    "05:00-07:00": "卯时 (大肠经)", "07:00-09:00": "辰时 (胃经)", "09:00-11:00": "巳时 (脾经)",
-    "11:00-13:00": "午时 (心经)", "13:00-15:00": "未时 (小肠经)", "15:00-17:00": "申时 (膀胱经)",
-    "17:00-19:00": "酉时 (肾经)", "19:00-21:00": "戌时 (心包经)", "21:00-23:00": "亥时 (三焦经)"
-  };
-  return map[timeStr] || ""; 
-};
-
-const getHexPolygon = (values, radius, centerX, centerY) => {
-  const angleStep = (Math.PI * 2) / 6;
-  return values.map((val, i) => {
-    // Start from -90deg (top)
-    const angle = i * angleStep - Math.PI / 2;
-    // Normalize value (0-100) to radius
-    const r = (val / 100) * radius;
-    const x = centerX + Math.cos(angle) * r;
-    const y = centerY + Math.sin(angle) * r;
-    return `${x},${y}`;
-  }).join(' ');
-};
-
-/**
- * ==========================================
- * SHARED COMPONENTS
- * ==========================================
- */
-
-const BrandLogo = ({ size = "text-xl", center = false }) => (
-  <div className={`${center ? 'flex justify-center' : 'flex'}`}>
-    <h1 className={`${size} font-black tracking-tighter text-white uppercase italic`}>
-      Stall<span className="text-red-600 font-serif not-italic mx-1" style={{ textShadow: '0 0 10px rgba(220,38,38,0.5)' }}>醫</span><span className="text-neon-green not-italic">Health</span>
-    </h1>
-  </div>
-);
-
-/**
- * ==========================================
- * MAIN COMPONENT
- * ==========================================
- */
-export default function App() {
-  // State: App Flow
-  const [appState, setAppState] = useState('intro'); // intro, wizard, report
-  const [wizardStep, setWizardStep] = useState(1);
-  const [mode, setMode] = useState('online'); // online, offline
-  const [isMember, setIsMember] = useState(false);
-  const [memberId, setMemberId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  // State: Full Data Model
-  const [formData, setFormData] = useState({
-    // 1. Personal Info
-    name: '',
-    gender: 'secret',
-    ageRange: '25-30',
-    contactType: 'Mobile',
-    contactValue: '',
-    wechatId: '', // Auto-detected logic placeholder
-    idCard: '', 
-    origin: '', 
-    religion: '', 
-    location: '', 
-    income: '5000-10000',
-
-    // 2. Vital Signs
-    height: 170,
-    weight: 65,
-    sleepTime: '23:00-01:00', // Default Zi Hour
-    sleepDuration: 7,
-    sleepQuality: 'good',
-    snoring: 'none',
-    dreaming: 'none',
-    drooling: 'no',
-    breath: 'none',
-    eyeSecretion: 'none',
-    urination: 'normal',
-    stool: 'normal',
-    nightUrine: 0,
-    medication: '',
-    diseaseHistory: '',
-    // Female Specific
-    menstruationCycle: 'regular',
-    menstruationFlow: 'normal',
-    menstruationPain: 'none',
-
-    // 3. Somatic Symptoms
-    symptoms: []
-  });
-
-  // State: Analysis Results
-  const [report, setReport] = useState(null);
-  const [easterEggActive, setEasterEggActive] = useState(false);
-
-  // --- PWA Initialization ---
-  useEffect(() => {
-    // 动态注入 PWA 相关的 Meta 标签和脚本到 Head 中
-    const pwaElements = [
-      { tag: 'link', rel: 'manifest', href: 'manifest.json' },
-      { tag: 'meta', name: 'theme-color', content: '#000000' },
-      { tag: 'meta', name: 'apple-mobile-web-app-capable', content: 'yes' },
-      { tag: 'meta', name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
-      { tag: 'meta', name: 'apple-mobile-web-app-title', content: 'StallHealth' },
-      { tag: 'link', rel: 'apple-touch-icon', href: 'icon.png' }
-    ];
-
-    pwaElements.forEach(el => {
-      let node;
-      if (el.tag === 'link') {
-        node = document.createElement('link');
-        node.rel = el.rel;
-        node.href = el.href;
-      } else {
-        node = document.createElement('meta');
-        node.name = el.name;
-        node.content = el.content;
-      }
-      document.head.appendChild(node);
-    });
-
-    // 注册 Service Worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-          .then(reg => console.log('SW registered!', reg))
-          .catch(err => console.log('SW registration failed!', err));
-      });
-    }
-  }, []);
-
-  // --- Handlers ---
-  const handleModeToggle = (newMode) => setMode(newMode);
-
-  const handleMembership = () => {
-    if (memberId.length > 3) {
-      setIsMember(true);
-      // alert("私域会员身份已确认。正在加载名医临床数据库...");
-    }
-  };
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      
-      // Easter Egg Trigger Logic
-      if (field === 'location' || field === 'origin') {
-        const triggers = ['Yunnan', 'Kunming', '云南', '昆明', '弥勒', '红河'];
-        if (triggers.some(t => newData.location?.includes(t)) || triggers.some(t => newData.origin?.includes(t))) {
-          setEasterEggActive(true);
-        } else {
-          setEasterEggActive(false);
-        }
-      }
-      return newData;
-    });
-  };
-
-  const toggleSymptom = (value) => {
-    setFormData(prev => {
-      const exists = prev.symptoms.includes(value);
-      if (exists) return { ...prev, symptoms: prev.symptoms.filter(s => s !== value) };
-      return { ...prev, symptoms: [...prev.symptoms, value] };
-    });
-  };
-
-  const nextStep = () => {
-    if (wizardStep < 3) {
-      setWizardStep(prev => prev + 1);
-    } else {
-      generateAnalysis();
-    }
-  };
-
-  const prevStep = () => setWizardStep(prev => prev - 1);
-
-  // --- Core Logic: Analysis Engine ---
-
-  const generateAnalysis = () => {
-    setIsLoading(true);
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StallHealth Cyber TCM | 赛博中医</title>
     
-    // Simulate processing delay
-    setTimeout(() => {
-      const bmi = calculateBMI(formData.height, formData.weight);
-      const currentMonth = new Date().getMonth() + 1;
-      const s = formData.symptoms;
-
-      // 1. Basic TCM Diagnosis & Prescription Matching
-      let diagnosisTitle = "平和质 (Balanced)";
-      let diagnosisDesc = "阴阳气血调和，体态适中、面色红润、精力充沛。";
-      // Radar Schema: [Heart, Liver, Spleen/Stomach, Lung, Kidney, Intestine]
-      let radarData = [85, 85, 85, 85, 85, 85]; 
-      let prescriptionKey = "Balanced"; // Default
-
-      // Detailed Scoring Logic (Simplified for Demo)
-      if (s.includes('失眠') || s.includes('心慌') || s.includes('心悸')) radarData[0] -= 30; // Heart
-      if (s.includes('烦躁') || s.includes('口苦') || s.includes('眼干')) radarData[1] -= 35; // Liver
-      if (s.includes('腹胀') || s.includes('食欲不振') || formData.stool === 'wet') radarData[2] -= 30; // Spleen
-      if (s.includes('咽喉干痒') || s.includes('皮肤干裂')) radarData[3] -= 25; // Lung
-      if (s.includes('腰酸') || s.includes('手脚冰凉') || formData.nightUrine > 1) radarData[4] -= 35; // Kidney
-      if (formData.stool !== 'normal' || formData.breath !== 'none' || s.includes('便秘') || s.includes('腹泻')) radarData[5] -= 40; // Intestine
-
-      // Determine Dominant Syndrome based on lowest scores or key symptoms
-      if (s.includes('乏力') || s.includes('自汗')) {
-        diagnosisTitle = "气虚质 (Qi Deficiency)";
-        diagnosisDesc = "元气不足，容易疲乏，精神不振，易出汗。";
-        prescriptionKey = "QiDeficiency";
-      } else if (s.includes('手脚冰凉') || s.includes('怕冷')) {
-        diagnosisTitle = "阳虚质 (Yang Deficiency)";
-        diagnosisDesc = "阳气不足，畏寒怕冷，手足不温，喜热饮食。";
-        prescriptionKey = "YangDeficiency";
-      } else if (s.includes('口苦') || s.includes('烦躁')) {
-        diagnosisTitle = "肝火旺 (Liver Fire)";
-        diagnosisDesc = "肝气郁结化火，表现为急躁易怒，头晕胀痛，目赤口苦。";
-        prescriptionKey = "LiverFire";
-      } else if (s.includes('肢体乏力') || s.includes('四肢沉重') || formData.stool === 'wet') {
-        diagnosisTitle = "痰湿质 (Phlegm-Dampness)";
-        diagnosisDesc = "湿浊内蕴，身重不爽，皮肤油脂较多，大便粘滞。";
-        prescriptionKey = "PhlegmDamp";
-      } else if (s.includes('失眠') && (s.includes('心慌') || s.includes('心悸'))) {
-         diagnosisTitle = "心神不宁 (Restless Spirit)";
-         diagnosisDesc = "心血不足或虚火内扰，神志不宁，睡眠质量差。";
-         prescriptionKey = "Restless";
-      }
-
-      // Fetch the full prescription object
-      const selectedPrescription = prescriptionDatabase[prescriptionKey] || prescriptionDatabase["Balanced"];
-
-      // 2. Golden Soup Recommendation
-      const recommendSoup = () => {
-        // Priority 1: Symptom Match
-        for (const soup of goldenSoupMenu) {
-          const match = soup.symptoms.some(tag => s.includes(tag));
-          if (match && soup.id !== "GS_009") return soup; 
-        }
-        // Priority 2: Seasonal Match
-        const seasonalSoup = goldenSoupMenu.find(s => s.season.includes(currentMonth));
-        if (seasonalSoup) return seasonalSoup;
-        // Priority 3: Fallback Signature
-        return goldenSoupMenu.find(s => s.id === "GS_009");
-      };
-
-      const selectedSoup = recommendSoup();
-
-      setReport({
-        diagnosisTitle,
-        diagnosisDesc,
-        radarData, // Now has 6 values
-        bmi,
-        prescription: selectedPrescription,
-        soup: selectedSoup,
-        timestamp: new Date().toLocaleDateString()
-      });
-
-      setIsLoading(false);
-      setAppState('report');
-    }, 2000);
-  };
-
-  // --- Render Helpers ---
-
-  const renderIntro = () => (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-neon-green p-6 relative overflow-hidden font-sans">
-      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#00FF41 1px, transparent 1px), linear-gradient(90deg, #00FF41 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
-      
-      <div className="z-10 text-center max-w-sm w-full space-y-10 animate-fadeIn">
-        
-        <div className="space-y-3">
-          <BrandLogo size="text-6xl" center={true} />
-          <div className="flex items-center justify-center gap-4 opacity-80">
-             <div className="h-[1px] w-12 bg-neon-green/50"></div>
-             <p className="text-xs uppercase tracking-[0.4em] font-bold text-gray-400">赛博中医 | CYBER TCM</p>
-             <div className="h-[1px] w-12 bg-neon-green/50"></div>
-          </div>
-        </div>
-        
-        <div className="bg-zinc-900/80 border border-zinc-800 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
-          <div className="flex gap-2">
-            <button onClick={() => handleModeToggle('online')} className={`flex-1 flex items-center justify-center py-4 rounded-xl text-sm font-bold transition-all duration-300 ${mode === 'online' ? 'bg-neon-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>
-              <Zap size={18} className="mr-2" /> 在线诊断
-            </button>
-            <button onClick={() => handleModeToggle('offline')} className={`flex-1 flex items-center justify-center py-4 rounded-xl text-sm font-bold transition-all duration-300 ${mode === 'offline' ? 'bg-zinc-700 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}>
-              <Shield size={18} className="mr-2" /> 私密离线
-            </button>
-          </div>
-        </div>
-
-        <div className="text-left space-y-3">
-          <div className="flex items-center justify-between px-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Member Authenticator</label>
-            {isMember && <span className="text-xs text-amber-500 font-bold flex items-center animate-bounce"><Share2 size={12} className="mr-1"/> 核心数据库已就绪</span>}
-          </div>
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <input type="text" placeholder="Guest ID: #7728..." className="bg-zinc-900 border border-zinc-800 text-white px-5 py-4 rounded-xl w-full text-base focus:outline-none focus:border-neon-green focus:bg-black transition-all font-mono shadow-inner" value={memberId} onChange={(e) => setMemberId(e.target.value)} />
-            </div>
-            <button onClick={handleMembership} className={`px-6 rounded-xl border-2 transition-all duration-500 flex items-center justify-center ${isMember ? 'bg-amber-500 border-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'border-zinc-800 text-gray-500 hover:border-neon-green hover:text-neon-green'}`}>
-              {isMember ? <Unlock size={24} /> : <Lock size={24} />}
-            </button>
-          </div>
-        </div>
-
-        <div className="pt-6">
-          <button onClick={() => setAppState('wizard')} className="w-full bg-neon-green hover:bg-green-400 text-black font-black py-6 rounded-2xl flex items-center justify-center text-lg tracking-[0.2em] transition-all transform active:scale-[0.98] shadow-[0_10px_40px_rgba(0,255,65,0.4)] group border-2 border-transparent hover:border-white">
-            START DIAGNOSIS <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-          </button>
-          <p className="mt-8 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-60">System Status: Cloud Link Stable // 01001101</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderWizard = () => (
-    <div className="min-h-screen bg-zinc-950 text-gray-200 flex flex-col font-sans">
-      <div className="border-b border-gray-800 p-4 flex justify-between items-center bg-black sticky top-0 z-20">
-        <BrandLogo size="text-xl" />
-        <div className="flex gap-1">
-          {[1,2,3].map(step => (
-            <div key={step} className={`h-1.5 w-8 rounded-full ${step <= wizardStep ? 'bg-neon-green shadow-[0_0_8px_rgba(0,255,65,0.5)]' : 'bg-zinc-800'}`} />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full">
-        {/* ================= STEP 1: IDENTITY (PERSONAL INFO) ================= */}
-        {wizardStep === 1 && (
-          <div className="space-y-6 animate-fadeIn pb-20">
-            <div className="flex items-center gap-3 mb-6">
-               <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-               <h2 className="text-xl font-bold text-white tracking-tight uppercase">I. 个人信息 / Identity</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">姓名 / Name (可匿名)</label>
-                <input type="text" placeholder="昵称" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none transition-colors" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">性别 / Gender</label>
-                <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white focus:border-neon-green outline-none appearance-none" value={formData.gender} onChange={(e) => handleInputChange('gender', e.target.value)}>
-                  <option value="male">男 (Male)</option>
-                  <option value="female">女 (Female)</option>
-                  <option value="secret">保密 (Secret)</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">年龄区间 / Age (0-100)</label>
-                 <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.ageRange} onChange={(e) => handleInputChange('ageRange', e.target.value)}>
-                    {[...Array(21)].map((_, i) => (
-                      <option key={i} value={`${i * 5}-${i * 5 + 5}`}>{i*5} - {i*5+5} 岁</option>
-                    ))}
-                 </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">联系方式 / Contact</label>
-                <div className="flex gap-2">
-                  <select className="bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white appearance-none w-1/3" value={formData.contactType} onChange={(e) => handleInputChange('contactType', e.target.value)}>
-                    <option value="Mobile">手机</option>
-                    <option value="WeChat">WeChat</option>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Telegram">Telegram</option>
-                    <option value="Other">其它</option>
-                  </select>
-                  <input type="text" className="flex-1 bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.contactValue} onChange={(e) => handleInputChange('contactValue', e.target.value)} />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">微信号 / WeChat ID</label>
-                <div className="w-full bg-zinc-950 border border-zinc-900 border-dashed p-3.5 rounded-xl text-gray-600 text-xs font-mono">
-                    {formData.contactValue ? 'SYSTEM_LINK_ACTIVE' : 'AUTO_DETECTING_DEVICE...'}
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">身份证号 / ID Card (Optional)</label>
-                <input type="text" placeholder="用于宗族数据匹配" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.idCard} onChange={(e) => handleInputChange('idCard', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">籍贯 / Ancestry</label>
-                <input type="text" placeholder="e.g. 云南弥勒 (宗族/族谱匹配)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.origin} onChange={(e) => handleInputChange('origin', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">宗教信仰 / Religion</label>
-                <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.religion} onChange={(e) => handleInputChange('religion', e.target.value)}>
-                  <option value="">无 (None)</option>
-                  <option value="Buddhism">佛教</option>
-                  <option value="Taoism">道教</option>
-                  <option value="Islam">伊斯兰教 (清真)</option>
-                  <option value="Christianity">基督教</option>
-                  <option value="Other">其他</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">常驻城市 / Location</label>
-                <input type="text" placeholder="e.g. 昆明 (膳食结构分析)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">月均收入 / Income (RMB)</label>
-                <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)}>
-                  <option value="0-3000">0 - 3000</option>
-                  <option value="3000-5000">3000 - 5000</option>
-                  <option value="5000-10000">5000 - 10000</option>
-                  <option value="10000-30000">10000 - 30000</option>
-                  <option value="30000-50000">30000 - 50000</option>
-                  <option value="50000+">50000 以上</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= STEP 2: VITAL SIGNS (COMPREHENSIVE) ================= */}
-        {wizardStep === 2 && (
-          <div className="space-y-8 animate-fadeIn pb-20">
-            <div className="flex items-center gap-3 mb-6">
-               <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-               <h2 className="text-xl font-bold text-white tracking-tight uppercase">II. 体征信息 / Vital Signs</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* 1. Height (0-250cm, step 1) */}
-              <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
-                <div className="flex justify-between items-end">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">身高 / Height</label>
-                  <span className="text-2xl font-black text-neon-green font-mono">{formData.height}<span className="text-[10px] ml-1 text-gray-500">CM</span></span>
-                </div>
-                <input 
-                  type="range" min="0" max="250" step="1"
-                  value={formData.height}
-                  onChange={(e) => handleInputChange('height', e.target.value)}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-neon-green"
-                />
-              </div>
-
-              {/* 2. Weight (0-150kg, step 1) */}
-              <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
-                <div className="flex justify-between items-end">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">体重 / Weight</label>
-                  <span className="text-2xl font-black text-neon-green font-mono">{formData.weight}<span className="text-[10px] ml-1 text-gray-500">KG</span></span>
-                </div>
-                <input 
-                  type="range" min="0" max="150" step="1"
-                  value={formData.weight}
-                  onChange={(e) => handleInputChange('weight', e.target.value)}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-neon-green"
-                />
-              </div>
-
-              {/* 3-7. Sleep Section */}
-              <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><Moon size={14} className="mr-2"/> 睡眠监测 / Sleep</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">入睡时辰 (12时辰)</label>
-                    <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepTime} onChange={(e) => handleInputChange('sleepTime', e.target.value)}>
-                      <option value="23:00-01:00">23:00-01:00 (子时)</option>
-                      <option value="01:00-03:00">01:00-03:00 (丑时)</option>
-                      <option value="03:00-05:00">03:00-05:00 (寅时)</option>
-                      <option value="05:00-07:00">05:00-07:00 (卯时)</option>
-                      <option value="07:00-09:00">07:00-09:00 (辰时)</option>
-                      <option value="09:00-11:00">09:00-11:00 (巳时)</option>
-                      <option value="11:00-13:00">11:00-13:00 (午时)</option>
-                      <option value="13:00-15:00">13:00-15:00 (未时)</option>
-                      <option value="15:00-17:00">15:00-17:00 (申时)</option>
-                      <option value="17:00-19:00">17:00-19:00 (酉时)</option>
-                      <option value="19:00-21:00">19:00-21:00 (戌时)</option>
-                      <option value="21:00-23:00">21:00-23:00 (亥时)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠时长 (0-24h)</label>
-                    <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepDuration} onChange={(e) => handleInputChange('sleepDuration', e.target.value)}>
-                      {[...Array(25)].map((_, i) => <option key={i} value={i}>{i} 小时</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠质量</label>
-                    <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepQuality} onChange={(e) => handleInputChange('sleepQuality', e.target.value)}>
-                      <option value="good">优质 (睡醒精神满满)</option>
-                      <option value="bad">较差 (睡醒依旧困乏)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">打鼾情况</label>
-                    <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.snoring} onChange={(e) => handleInputChange('snoring', e.target.value)}>
-                      <option value="none">不打鼾</option>
-                      <option value="mild">轻微打鼾</option>
-                      <option value="moderate">中度打鼾</option>
-                      <option value="severe">重度打鼾</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">梦呓情况</label>
-                    <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.dreaming} onChange={(e) => handleInputChange('dreaming', e.target.value)}>
-                      <option value="none">无梦呓</option>
-                      <option value="mild">轻度梦呓</option>
-                      <option value="moderate">中度梦呓</option>
-                      <option value="severe">重度梦呓</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 8-10. Head & Face Excretion */}
-              <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><User size={14} className="mr-2"/> 头面状态 / Head & Face</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">口水 / Saliva</label>
-                    <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.drooling} onChange={(e) => handleInputChange('drooling', e.target.value)}>
-                      <option value="no">不流口水</option>
-                      <option value="yes">流口水</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">口气 / Breath</label>
-                    <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.breath} onChange={(e) => handleInputChange('breath', e.target.value)}>
-                      <option value="none">无口气</option>
-                      <option value="mild">轻微口气</option>
-                      <option value="moderate">中度口气</option>
-                      <option value="severe">重度口气</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">眼屎 / Eye Secr.</label>
-                    <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.eyeSecretion} onChange={(e) => handleInputChange('eyeSecretion', e.target.value)}>
-                      <option value="none">无眼屎</option>
-                      <option value="wet">湿性眼屎</option>
-                      <option value="dry">干性眼屎</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 11-13. Excretion */}
-              <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><Droplet size={14} className="mr-2"/> 排泄情况 / Excretion</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">排尿 / Urination</label>
-                    <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.urination} onChange={(e) => handleInputChange('urination', e.target.value)}>
-                      <option value="normal">正常</option>
-                      <option value="holding">时常性憋尿</option>
-                      <option value="freq">尿频尿急</option>
-                      <option value="diff">排尿困难</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">排便 / Stool</label>
-                    <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.stool} onChange={(e) => handleInputChange('stool', e.target.value)}>
-                      <option value="normal">正常</option>
-                      <option value="wet">便样湿软</option>
-                      <option value="dry">便样干硬</option>
-                    </select>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] text-gray-500 uppercase">起夜 / Night Urine</label>
-                    <div className="w-1/2 flex items-center gap-2">
-                       <input type="range" min="0" max="10" step="1" value={formData.nightUrine} onChange={(e) => handleInputChange('nightUrine', e.target.value)} className="w-full h-1 bg-zinc-800 rounded-lg accent-neon-green" />
-                       <span className="text-xs font-mono">{formData.nightUrine}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 14-15. History */}
-              <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><FileText size={14} className="mr-2"/> 医疗史 / History</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-gray-500 uppercase">药物摄入习惯 (避免相冲)</label>
-                    <textarea placeholder="如无则填'无'，有则逐一罗列" className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white text-xs h-20" value={formData.medication} onChange={(e) => handleInputChange('medication', e.target.value)}></textarea>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-gray-500 uppercase">重大疾病史 (避免相克)</label>
-                    <textarea placeholder="疾病时间及治疗结果" className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white text-xs h-20" value={formData.diseaseHistory} onChange={(e) => handleInputChange('diseaseHistory', e.target.value)}></textarea>
-                  </div>
-                </div>
-              </div>
-
-              {/* Female Specific */}
-              {formData.gender === 'female' && (
-                <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
-                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center">
-                     <Heart size={14} className="mr-2"/> 妇科监测 / Gynecology
-                   </h3>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">周期规律性</label>
-                        <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationCycle} onChange={(e) => handleInputChange('menstruationCycle', e.target.value)}>
-                          <option value="regular">规律 (准时)</option>
-                          <option value="early">提前 (Early)</option>
-                          <option value="late">错后 (Late)</option>
-                          <option value="irregular">不定期 (Irregular)</option>
-                          <option value="menopause">已绝经</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">经量状态</label>
-                        <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationFlow} onChange={(e) => handleInputChange('menstruationFlow', e.target.value)}>
-                          <option value="normal">正常</option>
-                          <option value="scanty">量少</option>
-                          <option value="heavy">量多</option>
-                          <option value="flooding">崩漏</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">伴随症状</label>
-                        <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationPain} onChange={(e) => handleInputChange('menstruationPain', e.target.value)}>
-                          <option value="none">无明显不适</option>
-                          <option value="pain_mild">轻微痛经</option>
-                          <option value="pain_severe">剧烈痛经</option>
-                          <option value="clots">有血块</option>
-                          <option value="distension">乳房胀痛</option>
-                        </select>
-                      </div>
-                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ================= STEP 3: SOMATIC SYMPTOMS (FULL LIST) ================= */}
-        {wizardStep === 3 && (
-          <div className="space-y-8 animate-fadeIn pb-20">
-            <div className="flex items-center gap-3 mb-4">
-               <div className="h-6 w-1 bg-neon-green rounded-full"></div>
-               <h2 className="text-xl font-bold text-white tracking-tight uppercase">III. 体感信息 / Somatic</h2>
-            </div>
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-6 border-b border-zinc-900 pb-4">Select all relevant sensors in your biological shell:</p>
-
-            {Object.entries(symptomOptions).map(([category, symptoms]) => (
-              <div key={category} className="mb-10 group">
-                <h3 className="text-neon-green text-[10px] font-black uppercase tracking-[0.3em] mb-4 flex items-center">
-                   <div className="w-1.5 h-1.5 bg-neon-green mr-2 rounded-full shadow-[0_0_8px_rgba(0,255,65,0.8)]"></div>
-                   {category === 'head' ? '头部及五官 (Head)' : 
-                    category === 'torso' ? '颈肩躯干 (Torso)' :
-                    category === 'limbs' ? '四肢 (Limbs)' :
-                    category === 'skin' ? '皮肤体表 (Skin)' : '全身状态 (Shell)'}
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {symptoms.map((s) => (
-                    <button
-                      key={s.value}
-                      onClick={() => toggleSymptom(s.value)}
-                      className={`px-3 py-3 text-xs text-left rounded-xl border transition-all flex items-center justify-between group/btn ${
-                        formData.symptoms.includes(s.value)
-                          ? 'bg-neon-green/10 border-neon-green text-neon-green shadow-sm font-bold'
-                          : 'bg-zinc-900/50 border-zinc-800 text-gray-500 hover:border-zinc-600 hover:text-gray-300'
-                      }`}
-                    >
-                      {s.label}
-                      {formData.symptoms.includes(s.value) && <Activity size={10} className="ml-2 animate-pulse" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="p-5 border-t border-zinc-900 bg-black/90 backdrop-blur-xl flex justify-between z-30 sticky bottom-0">
-        <button 
-          onClick={prevStep}
-          disabled={wizardStep === 1}
-          className={`px-6 py-4 rounded-xl text-xs font-bold tracking-widest uppercase transition-all ${wizardStep === 1 ? 'opacity-0 pointer-events-none' : 'bg-zinc-900 text-gray-400 hover:text-white hover:bg-zinc-800'}`}
-        >
-          Back
-        </button>
-        <button 
-          onClick={nextStep}
-          className="px-8 py-4 bg-neon-green hover:bg-green-400 text-black font-black rounded-xl flex items-center shadow-[0_5px_20px_rgba(0,255,65,0.2)] active:translate-y-0.5 transition-all text-sm tracking-widest uppercase"
-        >
-          {wizardStep === 3 ? 'FINALIZE DIAGNOSIS' : 'CONTINUE'} <ArrowRight size={18} className="ml-2"/>
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderReport = () => {
-    if (!report) return null;
-
-    // Golden Soup Data & Prescription Data
-    const soup = report.soup;
-    const rx = report.prescription;
-    const isYunnan = easterEggActive;
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    // Organ Labels for Hexagon
-    const organLabels = [
-      { name: "心/循环", en: "Heart", pos: "top-2 left-1/2 -translate-x-1/2" },
-      { name: "肝/情绪", en: "Liver", pos: "top-[25%] right-2" },
-      { name: "脾胃/消化", en: "Spleen", pos: "bottom-[25%] right-2" },
-      { name: "肺/呼吸", en: "Lung", pos: "bottom-2 left-1/2 -translate-x-1/2" },
-      { name: "肾/生殖", en: "Kidney", pos: "bottom-[25%] left-2" },
-      { name: "肠道/排毒", en: "Intestine", pos: "top-[25%] left-2" },
-    ];
-
-    // Detailed Organ Analysis Data
-    const organDetails = [
-      { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], color: "text-red-400", bar: "bg-red-500" },
-      { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], color: "text-green-400", bar: "bg-green-500" },
-      { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
-      { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
-      { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
-      { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
-    ];
-
-    return (
-      <div className="min-h-screen bg-black text-gray-200 p-4 md:p-8 font-sans">
-        
-        {/* REPORT HEADER */}
-        <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-800 pb-4">
-          <div className="mb-4 md:mb-0">
-            <h1 className="text-3xl font-bold text-white mb-1">DIAGNOSTIC REPORT</h1>
-            <p className="text-xs text-neon-green font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} // {report.timestamp}</p>
-          </div>
-          <div className="text-left md:text-right">
-            <p className="text-sm text-gray-500">StallHealth v2.3 (Full Spectrum)</p>
-            <p className="text-xs text-gray-600">{mode.toUpperCase()} MODE</p>
-          </div>
-        </div>
-
-        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
-          
-          {/* LEFT COLUMN: DIAGNOSIS & RADAR */}
-          <div className="space-y-6">
-            
-            {/* --- NEW: HEXAGON RADAR CHART --- */}
-            <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg relative overflow-hidden">
-               <h2 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center">
-                 <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
-               </h2>
-               
-               <div className="w-full aspect-square relative flex items-center justify-center mb-4">
-                 {/* Hexagon Background Grid */}
-                 <svg viewBox="0 0 100 100" className="w-full h-full absolute">
-                     <polygon points={getHexPolygon([100,100,100,100,100,100], 40, 50, 50)} fill="none" stroke="#333" strokeWidth="0.5" />
-                     <polygon points={getHexPolygon([75,75,75,75,75,75], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
-                     <polygon points={getHexPolygon([50,50,50,50,50,50], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="50" y2="10" stroke="#333" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="84.6" y2="30" stroke="#333" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="84.6" y2="70" stroke="#333" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="50" y2="90" stroke="#333" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="15.4" y2="70" stroke="#333" strokeWidth="0.5" />
-                     <line x1="50" y1="50" x2="15.4" y2="30" stroke="#333" strokeWidth="0.5" />
-                     
-                     {/* Data Polygon */}
-                     <polygon 
-                        points={getHexPolygon(report.radarData, 40, 50, 50)} 
-                        fill="rgba(0, 255, 65, 0.2)" 
-                        stroke="#00FF41" 
-                        strokeWidth="1.5"
-                     />
-                     {/* Data Points */}
-                     {report.radarData.map((val, i) => {
-                       const angle = i * (Math.PI / 3) - Math.PI / 2;
-                       const r = (val / 100) * 40;
-                       const x = 50 + Math.cos(angle) * r;
-                       const y = 50 + Math.sin(angle) * r;
-                       return <circle key={i} cx={x} cy={y} r="1.5" fill="#fff" />;
-                     })}
-                 </svg>
-
-                 {/* Labels */}
-                 {organLabels.map((l, i) => (
-                   <div key={i} className={`absolute ${l.pos} text-center`}>
-                     <span className="block text-[10px] text-gray-300 font-bold">{l.name}</span>
-                     <span className="block text-[8px] text-gray-600 uppercase">{l.en}</span>
-                   </div>
-                 ))}
-               </div>
-               
-               <h2 className="text-2xl text-neon-green font-bold mb-2">{report.diagnosisTitle}</h2>
-               <p className="text-sm text-gray-400 leading-relaxed mb-4">
-                 {report.diagnosisDesc}
-               </p>
-            </div>
-
-            {/* --- NEW: DETAILED ORGAN ANALYSIS --- */}
-            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
-               <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase flex items-center">
-                 <Layout size={14} className="mr-1"/> 脏腑功能详析 (Visceral Analysis)
-               </h3>
-               <div className="space-y-4">
-                 {organDetails.map((organ, idx) => (
-                   <div key={idx}>
-                     <div className="flex justify-between text-xs mb-1">
-                       <span className={`font-bold ${organ.color}`}>{organ.name}</span>
-                       <span className="text-gray-500">{organ.score}/100</span>
-                     </div>
-                     <div className="w-full bg-black rounded-full h-1.5 mb-1">
-                       <div className={`${organ.bar} h-1.5 rounded-full`} style={{ width: `${organ.score}%` }}></div>
-                     </div>
-                     <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
-                   </div>
-                 ))}
-               </div>
-            </div>
-
-            {/* LBS PHARMACY (MOCK) */}
-            <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
-               <h3 className="text-sm text-gray-500 mb-3 flex items-center"><MapPin size={14} className="mr-1"/> 推荐药房 (LBS)</h3>
-               <div className="bg-gray-800 h-24 w-full rounded mb-2 flex items-center justify-center text-xs text-gray-600">
-                 [地图组件: 已定位至 {formData.location || '当前城市'}]
-               </div>
-               <div className="text-xs text-white">
-                 <p className="font-bold">同仁堂 ({formData.location}分店)</p>
-                 <p className="text-gray-500">预估距离: 2.4km | 参考价: ¥45-60/剂</p>
-               </div>
-            </div>
-          </div>
-
-          {/* MIDDLE & RIGHT: PRESCRIPTION & DIET */}
-          <div className="lg:col-span-2 space-y-8">
-            
-            {/* HERBAL PRESCRIPTION (DETAILED) */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-               <div className="flex justify-between items-start mb-6">
-                 <h3 className="text-white font-bold text-lg flex items-center">
-                   <LeafIcon className="mr-2 text-neon-green" /> 
-                   StallHealth 专属方剂
-                 </h3>
-                 <div className="text-right">
-                   <p className="text-neon-green font-bold text-sm">{rx.name}</p>
-                   <p className="text-xs text-gray-500">源自：{rx.source}</p>
-                 </div>
-               </div>
-
-               {/* Herb Table */}
-               <div className="overflow-x-auto mb-6">
-                 <table className="w-full text-sm text-left text-gray-400">
-                   <thead className="text-xs text-gray-500 uppercase bg-zinc-800/50">
-                     <tr>
-                       <th className="px-3 py-2 rounded-l">药材 (Name)</th>
-                       <th className="px-3 py-2">部位 (Part)</th>
-                       <th className="px-3 py-2">剂量 (Dose)</th>
-                       <th className="px-3 py-2 rounded-r">功效/成分 (Effect)</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {rx.herbs.map((herb, idx) => (
-                       <tr key={idx} className="border-b border-zinc-800 hover:bg-zinc-800/30">
-                         <td className="px-3 py-2 font-bold text-white flex items-center">
-                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-gray-300 mr-2 min-w-[24px] text-center">{herb.role}</span>
-                           {herb.name}
-                         </td>
-                         <td className="px-3 py-2">{herb.part}</td>
-                         <td className="px-3 py-2 text-neon-green">{herb.dose}</td>
-                         <td className="px-3 py-2 text-xs">{herb.effect}</td>
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
-               </div>
-
-               {/* Instructions Grid */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
-                    <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><FireIcon className="w-3 h-3 mr-1"/> 食用方式 (Method)</h4>
-                    <p className="text-sm text-gray-300">{rx.instructions.method}</p>
-                  </div>
-                  <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
-                    <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Clock className="w-3 h-3 mr-1"/> 频次与时间 (Freq)</h4>
-                    <p className="text-sm text-gray-300">{rx.instructions.frequency} <span className="text-gray-500">|</span> {rx.instructions.bestTime}</p>
-                  </div>
-                  <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50 md:col-span-2">
-                    <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Calendar className="w-3 h-3 mr-1"/> 食用周期 (Cycle)</h4>
-                    <p className="text-sm text-gray-300">{rx.instructions.cycle}</p>
-                  </div>
-               </div>
-
-               {/* Warnings */}
-               <div className="space-y-3">
-                 <div className="flex items-start bg-yellow-900/10 p-3 rounded border border-yellow-700/30">
-                    <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 mt-0.5 shrink-0" />
-                    <div>
-                      <span className="text-yellow-500 font-bold text-xs block mb-1">药物副作用 (Side Effects)</span>
-                      <p className="text-xs text-gray-400">{rx.warnings.sideEffects}</p>
-                    </div>
-                 </div>
-                 <div className="flex items-start bg-red-900/10 p-3 rounded border border-red-700/30">
-                    <AlertTriangle className="w-4 h-4 text-red-500 mr-2 mt-0.5 shrink-0" />
-                    <div>
-                      <span className="text-red-500 font-bold text-xs block mb-1">食用禁忌 (Contraindications)</span>
-                      <p className="text-xs text-gray-400">
-                        {rx.warnings.contraindications}
-                        {formData.medication && <span className="block mt-1 text-red-400/80 font-bold">* 检测到您有服用其他药物历史，请务必间隔2小时以上服用中药。</span>}
-                      </p>
-                    </div>
-                 </div>
-               </div>
-            </div>
-
-            {/* --- MASTER'S DIETARY SOLUTION (GOLDEN SOUP) --- */}
-            <div className={`relative rounded-xl overflow-hidden border-2 transition-all duration-500 ${isYunnan ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.2)]'}`}>
-               
-               {/* Background Texture */}
-               <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900 to-amber-900/20"></div>
-               
-               <div className="relative p-6 md:p-8">
-                 {/* Header Badge */}
-                 <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1">Master's Dietary Solution (主理人食疗方案)</h3>
-                      <h2 className="text-2xl md:text-3xl font-bold text-white font-serif">{soup.name}</h2>
-                      <p className="text-amber-200/80 font-serif italic mt-1">{soup.subtitle}</p>
-                    </div>
-                    <div className="bg-amber-500/10 border border-amber-500/50 text-amber-400 px-3 py-1 rounded text-xs font-bold uppercase backdrop-blur-md">
-                       {soup.action}
-                    </div>
-                 </div>
-
-                 {/* The Copywrite */}
-                 <div className="mb-8 pl-4 border-l-2 border-amber-600/50">
-                    <p className="text-xl md:text-2xl text-gray-200 font-serif leading-relaxed italic">
-                      "{soup.tagline}"
-                    </p>
-                 </div>
-
-                 {/* Ingredients Grid */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div>
-                       <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">植萃语境 (Botanicals)</h4>
-                       <div className="flex flex-wrap gap-2">
-                         {soup.ingredients.map((ing, i) => (
-                           <span key={i} className="bg-black/50 text-amber-100 text-xs px-2 py-1 rounded border border-amber-900/30">
-                             {ing}
-                           </span>
-                         ))}
-                       </div>
-                    </div>
-                    <div>
-                       <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">匹配逻辑 (Source)</h4>
-                       <p className="text-xs text-gray-400">
-                         {soup.id === "GS_009" 
-                           ? "基于品牌全时调和逻辑推荐。"
-                           : `基于您的体感症状匹配: ${soup.symptoms.filter(s => formData.symptoms.includes(s)).join('、') || "当季时令匹配"}`
-                         }
-                       </p>
-                       {soup.id === "GS_009" && (
-                         <p className="text-[10px] text-amber-500 mt-2">*Based on the 24-Flavor Herbal Standard - The Soul of Stall.</p>
-                       )}
-                    </div>
-                 </div>
-
-                 {/* Easter Egg / Coupon */}
-                 {isYunnan && (
-                   <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded mb-6 flex items-center animate-pulse">
-                      <div className="mr-3 text-2xl">🦚</div>
-                      <div>
-                        <p className="text-purple-300 font-bold text-sm">LBS BONUS DETECTED</p>
-                        <p className="text-purple-200 text-xs">检测到同源气场（云南/弥勒）! 已赠送【Stall特饮券】一张。</p>
-                      </div>
-                   </div>
-                 )}
-
-                 {/* CTA */}
-                 <button className={`w-full py-4 font-bold text-black rounded flex items-center justify-center transition-all ${isYunnan ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400'}`}>
-                    {isYunnan ? '领取奖励 & 预订此汤' : 'ORDER THIS SOUP (预订)'} <ArrowRight className="ml-2" size={18} />
-                 </button>
-
-               </div>
-            </div>
-
-            <div className="flex justify-center pt-8">
-               <button 
-                 onClick={() => window.location.reload()}
-                 className="text-gray-500 hover:text-white text-sm flex items-center"
-               >
-                 Start New Diagnosis
-               </button>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // --- Main Render Switch ---
-  
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-neon-green">
-        <div className="w-16 h-16 border-4 border-neon-green border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="font-mono text-sm animate-pulse">ANALYZING BIOMETRICS...</p>
-        <p className="font-mono text-xs text-gray-600 mt-2">Connecting to Knowledge Graph...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="font-sans antialiased selection:bg-neon-green selection:text-black">
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+    <!-- 配置 Tailwind 主题色 (与原代码保持一致) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'neon-green': '#00FF41',
+                    },
+                    fontFamily: {
+                        sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+                    },
+                    animation: {
+                        fadeIn: 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            'from': { opacity: '0', transform: 'translateY(10px)' },
+                            'to': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
         }
-        .animate-fadeIn { animation: fadeIn 0.5s ease-out forwards; }
-        .text-neon-green { color: #00FF41; }
-        .bg-neon-green { background-color: #00FF41; }
-        .border-neon-green { border-color: #00FF41; }
+    </script>
+
+    <!-- 引入 Babel 用于在浏览器中解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Import Map: 告诉浏览器如何解析 import 语句 -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1?external=react"
+      }
+    }
+    </script>
+    
+    <style>
+        /* 全局样式修正 */
+        body {
+            background-color: #000;
+            color: #e5e7eb;
+            margin: 0;
+            padding: 0;
+        }
+        /* 滚动条样式 */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #00FF41; }
-      `}</style>
-      
-      {appState === 'intro' && renderIntro()}
-      {appState === 'wizard' && renderWizard()}
-      {appState === 'report' && renderReport()}
-    </div>
-  );
-}
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-// Icon Helpers
-const LeafIcon = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
-);
-const FireIcon = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-);
+    <!-- 主程序逻辑 -->
+    <!-- data-type="module" 允许我们在 Babel 脚本中使用 import -->
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout } from 'lucide-react';
+
+        /**
+         * ==========================================
+         * DATA ASSETS & CONFIGURATION
+         * ==========================================
+         */
+
+        // 1. The Golden Soup Database (Menu)
+        const goldenSoupMenu = [
+          {
+            id: "GS_001",
+            name: "金汤|壹号 (No.1 Golden Soup)",
+            subtitle: "[春分·寻芳]",
+            season: [2, 3, 4], 
+            symptoms: ["头疼", "头晕", "眩晕", "烦躁", "眼干", "眼涩", "视物模糊", "口苦", "Headache", "Dizziness"], 
+            ingredients: ["Mint Extract (薄荷萃取)", "Bergamot (佛手)", "Citron (香橼)"],
+            tagline: "一口春风，化开久违的舒畅。",
+            action: "疏理 (Regulate)"
+          },
+          {
+            id: "GS_002",
+            name: "金汤|贰号 (No.2 Golden Soup)",
+            subtitle: "[谷雨·雨后]",
+            season: [4, 5], 
+            symptoms: ["眼花", "鼻塞", "流涕", "打喷嚏", "咽喉干痒", "DryEyes", "WindHeat"],
+            ingredients: ["Mulberry Leaf (桑叶)", "Licorice (甘草)", "White Chrysanthemum (杭白菊)"],
+            tagline: "洗净微尘，还世界一片清亮。",
+            action: "清润 (Clear & Moist)"
+          },
+          {
+            id: "GS_003",
+            name: "金汤|叁号 (No.3 Golden Soup)",
+            subtitle: "[夏至·入禅]",
+            season: [5, 6, 7], 
+            symptoms: ["失眠", "口舌生疮", "心慌", "心悸", "盗汗", "Insomnia", "HeartPalpitations"],
+            ingredients: ["Lotus Plumule (莲子心)", "Lophatherum (淡竹叶)", "Ophiopogon (麦冬)"],
+            tagline: "窗外车马喧嚣，此处自生凉意。",
+            action: "入静 (Calm/Zen)"
+          },
+          {
+            id: "GS_004",
+            name: "金汤|肆号 (No.4 Golden Soup)",
+            subtitle: "[大暑·云端]",
+            season: [7, 8], 
+            symptoms: ["肢体乏力", "四肢沉重", "食欲不振", "恶心", "呕吐", "腹胀", "湿性眼屎", "Dampness"],
+            ingredients: ["Poria (茯苓)", "White Cardamom (白豆蔻)", "Patchouli (广藿香)"],
+            tagline: "像在云端漫步，带走积压的湿。",
+            action: "轻盈 (Lightness)"
+          },
+          {
+            id: "GS_005",
+            name: "金汤|伍号 (No.5 Golden Soup)",
+            subtitle: "[秋分·晨露]",
+            season: [8, 9, 10], 
+            symptoms: ["皮肤干裂", "皮肤瘙痒", "咽喉干痒", "口干舌燥", "DrySkin", "DryCough"],
+            ingredients: ["Lily Bulb (百合)", "Glehnia Root (北沙参)", "Polygonatum Odoratum (玉竹)"],
+            tagline: "为身体筑起一道抵御秋燥的屏障。",
+            action: "柔润 (Moisturize)"
+          },
+          {
+            id: "GS_006",
+            name: "金汤|陆号 (No.6 Golden Soup)",
+            subtitle: "[霜降·收敛]",
+            season: [10, 11], 
+            symptoms: ["注意力不集中", "记忆力下降", "脱发时头皮隐痛", "MildFatigue"],
+            ingredients: ["Dendrobium (石斛)", "Polygonatum (黄精)", "Goji Berry (枸杞子)"],
+            tagline: "在昼夜平分的时节，寻找平衡的力量。",
+            action: "平衡 (Balance)"
+          },
+          {
+            id: "GS_007",
+            name: "金汤|柒号 (No.7 Golden Soup)",
+            subtitle: "[冬至·暖阳]",
+            season: [11, 12, 1], 
+            symptoms: ["手脚冰凉", "怕冷", "胃疼", "冷痛", "腹泻", "ColdHandsFeet", "Chills"],
+            ingredients: ["Cinnamon (肉桂)", "Roasted Ginger (煨姜)", "Red Jujube (红枣)"],
+            tagline: "这一碗汤里，藏着冬日的阳光。",
+            action: "蓄能 (Warmth)"
+          },
+          {
+            id: "GS_008",
+            name: "金汤|捌号 (No.8 Golden Soup)",
+            subtitle: "[大寒·蓄势]",
+            season: [1, 2], 
+            symptoms: ["肢体乏力", "腰酸", "腰痛", "尿频尿急", "LowEnergy", "Weakness"],
+            ingredients: ["Ginseng <5yr (五年以下人参)", "Astragalus (黄芪)", "Cornus (山茱萸)"],
+            tagline: "于深寒处蓄势，静候春光破土。",
+            action: "固本 (Consolidate)"
+          },
+          {
+            id: "GS_009",
+            name: "金汤★玖号 (No.9 Golden Soup)",
+            subtitle: "[传世·金凤]",
+            season: [], 
+            symptoms: ["GeneralHealth", "FirstTimeVisitor", "HarmonyNeeded"],
+            ingredients: ["24-Flavor Herbal Mix (二十四味草本定标)", "Star Anise (八角)", "Tsaoko (草果)", "Clove (丁香)"],
+            tagline: "金汤点化，一味入神。山江山的灵魂所在。",
+            action: "调和 (Harmony)"
+          }
+        ];
+
+        // 2. Full Symptom Tags - UPDATED
+        const symptomOptions = {
+          head: [
+            { label: "头疼", value: "头疼" }, { label: "头晕", value: "头晕" }, { label: "眩晕", value: "眩晕" },
+            { label: "耳鸣", value: "耳鸣" }, { label: "耳闷", value: "耳闷" }, 
+            { label: "眼花", value: "眼花" }, { label: "眼干", value: "眼干" }, { label: "眼涩", value: "眼涩" }, { label: "视物模糊", value: "视物模糊" },
+            { label: "鼻塞", value: "鼻塞" }, { label: "流涕", value: "流涕" }, { label: "打喷嚏", value: "打喷嚏" },
+            { label: "咽喉干痒", value: "咽喉干痒" }, { label: "咽喉肿痛", value: "咽喉肿痛" },
+            { label: "口舌生疮", value: "口舌生疮" }, { label: "口干舌燥", value: "口干舌燥" }, { label: "口苦", value: "口苦" }, { label: "口臭", value: "口臭" },
+            { label: "牙龈肿痛", value: "牙龈肿痛" }, { label: "牙痛", value: "牙痛" },
+            { label: "偏头痛", value: "偏头痛" }, { label: "头皮发麻", value: "头皮发麻" }, { label: "脱发隐痛", value: "脱发时头皮隐痛" }
+          ],
+          torso: [
+            { label: "颈部僵硬", value: "颈部僵硬" }, { label: "落枕酸痛", value: "落枕酸痛" },
+            { label: "肩部酸胀", value: "肩部酸胀" }, { label: "背痛", value: "背痛" },
+            { label: "胸闷", value: "胸闷" }, { label: "心慌", value: "心慌" }, { label: "心悸", value: "心悸" }, { label: "胸口刺痛", value: "胸口刺痛" }, { label: "岔气", value: "岔气" },
+            { label: "腹胀", value: "腹胀" }, { label: "腹痛", value: "腹痛" }, { label: "胃疼", value: "胃疼" },
+            { label: "反酸", value: "反酸" }, { label: "烧心", value: "烧心" }, { label: "嗳气", value: "嗳气" }, { label: "打嗝", value: "打嗝" },
+            { label: "腹泻", value: "腹泻" }, { label: "便秘", value: "便秘" },
+            { label: "腰酸", value: "腰酸" }, { label: "腰痛", value: "腰痛" }, { label: "腰胀", value: "腰胀" }
+          ],
+          limbs: [
+            { label: "手麻", value: "手麻" }, { label: "脚麻", value: "脚麻" },
+            { label: "手脚冰凉", value: "手脚冰凉" }, { label: "手脚发热", value: "手脚发热" },
+            { label: "脚肿", value: "脚肿" }, { label: "腿肿", value: "腿肿" },
+            { label: "关节酸痛", value: "关节酸痛" }, { label: "肌肉酸痛", value: "肌肉酸痛" },
+            { label: "抽筋", value: "抽筋" }, { label: "痉挛", value: "痉挛" },
+            { label: "手指僵硬", value: "手指关节僵硬" }, { label: "足跟痛", value: "足跟痛" },
+            { label: "肢体乏力", value: "肢体乏力" }, { label: "四肢沉重", value: "四肢沉重" }
+          ],
+          skin: [
+            { label: "皮肤瘙痒", value: "皮肤瘙痒" }, { label: "皮肤干裂", value: "皮肤干裂" }, { label: "皮肤泛红", value: "皮肤泛红" },
+            { label: "皮肤刺痛", value: "皮肤刺痛" }, { label: "皮肤灼热", value: "皮肤灼热感" },
+            { label: "荨麻疹", value: "荨麻疹风团瘙痒" }, { label: "蚊虫红肿", value: "蚊虫叮咬红肿痒" },
+            { label: "痱子刺痒", value: "痱子刺痒" }, { label: "冻疮肿痛", value: "冻疮肿痛痒" },
+            { label: "脱皮", value: "脱皮" }, { label: "皮肤紧绷", value: "皮肤紧绷感" }
+          ],
+          general: [
+            { label: "失眠", value: "失眠" }, { label: "嗜睡", value: "嗜睡" },
+            { label: "乏力", value: "乏力" }, { label: "疲劳", value: "疲劳" },
+            { label: "烦躁", value: "烦躁" }, { label: "心慌", value: "心慌" },
+            { label: "盗汗", value: "盗汗" }, { label: "自汗", value: "自汗" },
+            { label: "怕冷", value: "怕冷" }, { label: "怕热", value: "怕热" },
+            { label: "食欲不振", value: "食欲不振" }, { label: "恶心", value: "恶心" }, { label: "呕吐", value: "呕吐" },
+            { label: "注意力不集中", value: "注意力不集中" }, { label: "记忆力下降", value: "记忆力下降" }
+          ]
+        };
+
+        const prescriptionDatabase = {
+          "QiDeficiency": {
+            name: "加味补中益气汤",
+            source: "《脾胃论》加减",
+            herbs: [
+              { name: "生黄芪", part: "根茎", role: "君", dose: "30g", effect: "补中益气，升阳举陷" },
+              { name: "党参", part: "根", role: "臣", dose: "15g", effect: "补脾肺气，生津养血" },
+              { name: "炒白术", part: "根茎", role: "臣", dose: "10g", effect: "健脾益气，燥湿利水" },
+              { name: "当归", part: "根", role: "佐", dose: "10g", effect: "补血活血，调经止痛" },
+              { name: "陈皮", part: "果皮", role: "佐", dose: "6g", effect: "理气健脾，燥湿化痰" },
+              { name: "升麻", part: "根茎", role: "使", dose: "6g", effect: "升举阳气，清热解毒" },
+              { name: "柴胡", part: "根", role: "使", dose: "6g", effect: "疏肝解郁，升阳举陷" },
+              { name: "炙甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药，补脾益气" }
+            ],
+            instructions: {
+              method: "水煎服。先武火（大火）煮沸，后文火（小火）煎煮30分钟，取汁约400ml。",
+              frequency: "每日1剂，分早晚2次温服。",
+              cycle: "7天为一个疗程，建议连续服用2个疗程后复诊。",
+              bestTime: "饭后1小时服用为宜。"
+            },
+            warnings: {
+              sideEffects: "部分人群服用后可能出现腹胀或口干，属正常现象，可适当减少黄芪用量。",
+              contraindications: "感冒发热期间停服；阴虚火旺者（表现为手脚心热、盗汗）慎用；高血压患者请遵医嘱服用。"
+            }
+          },
+          "YangDeficiency": {
+            name: "附子理中丸化裁",
+            source: "《太平惠民和剂局方》化裁",
+            herbs: [
+              { name: "制附子", part: "侧根", role: "君", dose: "10g", effect: "回阳救逆，补火助阳（需先煎30分钟）" },
+              { name: "干姜", part: "根茎", role: "臣", dose: "10g", effect: "温中散寒，回阳通脉" },
+              { name: "党参", part: "根", role: "臣", dose: "15g", effect: "补中益气" },
+              { name: "炒白术", part: "根茎", role: "佐", dose: "10g", effect: "健脾燥湿" },
+              { name: "炙甘草", part: "根", role: "使", dose: "6g", effect: "温中补虚，调和药性" }
+            ],
+            instructions: {
+              method: "水煎服。注意：制附子必须先单独煎煮30-60分钟，至口尝无麻舌感后，再放入其他药物同煮。",
+              frequency: "每日1剂，早晚温服。",
+              cycle: "5天为一个疗程，症状缓解即止，不宜久服。",
+              bestTime: "饭后服用，减少对胃肠刺激。"
+            },
+            warnings: {
+              sideEffects: "如出现口舌发麻、心慌、恶心等症状，请立即停止服用并就医（附子中毒征兆）。",
+              contraindications: "孕妇禁用；阴虚阳亢者禁用；有实热症状者（咽喉肿痛、便秘尿黄）禁用。"
+            }
+          },
+          "LiverFire": {
+            name: "丹栀逍遥散加减",
+            source: "《内科摘要》",
+            herbs: [
+              { name: "牡丹皮", part: "根皮", role: "臣", dose: "10g", effect: "清热凉血，活血散瘀" },
+              { name: "焦栀子", part: "果实", role: "臣", dose: "10g", effect: "泻火除烦，清热利湿" },
+              { name: "柴胡", part: "根", role: "君", dose: "10g", effect: "疏肝解郁" },
+              { name: "白芍", part: "根", role: "臣", dose: "15g", effect: "养血柔肝，缓急止痛" },
+              { name: "当归", part: "根", role: "佐", dose: "10g", effect: "养血和血" },
+              { name: "茯苓", part: "菌核", role: "佐", dose: "15g", effect: "健脾宁心" },
+              { name: "薄荷", part: "地上部分", role: "使", dose: "3g", effect: "疏散风热（后下）" }
+            ],
+            instructions: {
+              method: "水煎服。薄荷含挥发油，需在关火前5分钟放入。",
+              frequency: "每日1剂，早晚分服。",
+              cycle: "7天为一个疗程。",
+              bestTime: "餐后服用。"
+            },
+            warnings: {
+              sideEffects: "长期服用可能苦寒伤胃，致食欲减退。",
+              contraindications: "脾胃虚寒、大便溏泄者慎用；孕妇慎用。"
+            }
+          },
+          "PhlegmDamp": {
+            name: "二陈汤合三子养亲汤",
+            source: "《太平惠民和剂局方》",
+            herbs: [
+              { name: "法半夏", part: "块茎", role: "君", dose: "10g", effect: "燥湿化痰，降逆止呕" },
+              { name: "陈皮", part: "果皮", role: "臣", dose: "10g", effect: "理气健脾，燥湿化痰" },
+              { name: "茯苓", part: "菌核", role: "佐", dose: "15g", effect: "渗湿利水，宁心安神" },
+              { name: "莱菔子", part: "种子", role: "佐", dose: "10g", effect: "消食除胀，降气化痰" },
+              { name: "白芥子", part: "种子", role: "佐", dose: "6g", effect: "温肺化痰，利气散结" },
+              { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药" }
+            ],
+            instructions: {
+              method: "水煎服。",
+              frequency: "每日1剂，分2次服用。",
+              cycle: "7-14天为一个疗程。",
+              bestTime: "饭后服用。"
+            },
+            warnings: {
+              sideEffects: "可能出现口干，多饮水即可。",
+              contraindications: "阴虚燥咳、咳血者禁用。"
+            }
+          },
+          "Restless": {
+            name: "酸枣仁汤加减",
+            source: "《金匮要略》",
+            herbs: [
+              { name: "炒酸枣仁", part: "种子", role: "君", dose: "20g", effect: "养心补肝，宁心安神（捣碎先煎）" },
+              { name: "茯神", part: "菌核", role: "臣", dose: "15g", effect: "宁心安神" },
+              { name: "知母", part: "根茎", role: "佐", dose: "10g", effect: "滋阴清热" },
+              { name: "川芎", part: "根茎", role: "佐", dose: "6g", effect: "活血行气" },
+              { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和药性" }
+            ],
+            instructions: {
+              method: "水煎服。酸枣仁建议捣碎后先煮20分钟，利于有效成分析出。",
+              frequency: "每日1剂，睡前1小时温服。",
+              cycle: "14天为一个疗程。",
+              bestTime: "睡前服用效果最佳。"
+            },
+            warnings: {
+              sideEffects: "极少数人服用后可能出现嗜睡或轻微头晕。",
+              contraindications: "实热火盛所致失眠者慎用；孕妇慎用。"
+            }
+          },
+          "Balanced": {
+            name: "四君子汤（轻身版）",
+            source: "《太平惠民和剂局方》",
+            herbs: [
+              { name: "党参", part: "根", role: "君", dose: "10g", effect: "补中益气" },
+              { name: "白术", part: "根茎", role: "臣", dose: "10g", effect: "健脾燥湿" },
+              { name: "茯苓", part: "菌核", role: "佐", dose: "10g", effect: "健脾宁心" },
+              { name: "甘草", part: "根", role: "使", dose: "6g", effect: "调和诸药" }
+            ],
+            instructions: {
+              method: "水煎代茶饮。",
+              frequency: "每周2-3次。",
+              cycle: "长期保养。",
+              bestTime: "日间服用。"
+            },
+            warnings: {
+              sideEffects: "性质平和，一般无副作用。",
+              contraindications: "感冒发热、咽喉肿痛时暂停服用。"
+            }
+          }
+        };
+
+        const calculateBMI = (height, weight) => {
+          if (!height || !weight) return 0;
+          const hInM = height / 100;
+          return (weight / (hInM * hInM)).toFixed(1);
+        };
+
+        const getTCMHour = (timeStr) => {
+          if (!timeStr) return "";
+          // TCM Hour mapping for reference display
+          const map = {
+            "23:00-01:00": "子时 (胆经)", "01:00-03:00": "丑时 (肝经)", "03:00-05:00": "寅时 (肺经)",
+            "05:00-07:00": "卯时 (大肠经)", "07:00-09:00": "辰时 (胃经)", "09:00-11:00": "巳时 (脾经)",
+            "11:00-13:00": "午时 (心经)", "13:00-15:00": "未时 (小肠经)", "15:00-17:00": "申时 (膀胱经)",
+            "17:00-19:00": "酉时 (肾经)", "19:00-21:00": "戌时 (心包经)", "21:00-23:00": "亥时 (三焦经)"
+          };
+          return map[timeStr] || ""; 
+        };
+
+        const getHexPolygon = (values, radius, centerX, centerY) => {
+          const angleStep = (Math.PI * 2) / 6;
+          return values.map((val, i) => {
+            // Start from -90deg (top)
+            const angle = i * angleStep - Math.PI / 2;
+            // Normalize value (0-100) to radius
+            const r = (val / 100) * radius;
+            const x = centerX + Math.cos(angle) * r;
+            const y = centerY + Math.sin(angle) * r;
+            return `${x},${y}`;
+          }).join(' ');
+        };
+
+        /**
+         * ==========================================
+         * SHARED COMPONENTS
+         * ==========================================
+         */
+
+        const BrandLogo = ({ size = "text-xl", center = false }) => (
+          <div className={`${center ? 'flex justify-center' : 'flex'}`}>
+            <h1 className={`${size} font-black tracking-tighter text-white uppercase italic`}>
+              Stall<span className="text-red-600 font-serif not-italic mx-1" style={{ textShadow: '0 0 10px rgba(220,38,38,0.5)' }}>醫</span><span className="text-neon-green not-italic">Health</span>
+            </h1>
+          </div>
+        );
+
+        /**
+         * ==========================================
+         * MAIN COMPONENT
+         * ==========================================
+         */
+        function App() {
+          // State: App Flow
+          const [appState, setAppState] = useState('intro'); // intro, wizard, report
+          const [wizardStep, setWizardStep] = useState(1);
+          const [mode, setMode] = useState('online'); // online, offline
+          const [isMember, setIsMember] = useState(false);
+          const [memberId, setMemberId] = useState('');
+          const [isLoading, setIsLoading] = useState(false);
+
+          // State: Full Data Model
+          const [formData, setFormData] = useState({
+            // 1. Personal Info
+            name: '',
+            gender: 'secret',
+            ageRange: '25-30',
+            contactType: 'Mobile',
+            contactValue: '',
+            wechatId: '', // Auto-detected logic placeholder
+            idCard: '', 
+            origin: '', 
+            religion: '', 
+            location: '', 
+            income: '5000-10000',
+
+            // 2. Vital Signs
+            height: 170,
+            weight: 65,
+            sleepTime: '23:00-01:00', // Default Zi Hour
+            sleepDuration: 7,
+            sleepQuality: 'good',
+            snoring: 'none',
+            dreaming: 'none',
+            drooling: 'no',
+            breath: 'none',
+            eyeSecretion: 'none',
+            urination: 'normal',
+            stool: 'normal',
+            nightUrine: 0,
+            medication: '',
+            diseaseHistory: '',
+            // Female Specific
+            menstruationCycle: 'regular',
+            menstruationFlow: 'normal',
+            menstruationPain: 'none',
+
+            // 3. Somatic Symptoms
+            symptoms: []
+          });
+
+          // State: Analysis Results
+          const [report, setReport] = useState(null);
+          const [easterEggActive, setEasterEggActive] = useState(false);
+
+          // --- Handlers ---
+          const handleModeToggle = (newMode) => setMode(newMode);
+
+          const handleMembership = () => {
+            if (memberId.length > 3) {
+              setIsMember(true);
+              // alert("私域会员身份已确认。正在加载名医临床数据库...");
+            }
+          };
+
+          const handleInputChange = (field, value) => {
+            setFormData(prev => {
+              const newData = { ...prev, [field]: value };
+              
+              // Easter Egg Trigger Logic
+              if (field === 'location' || field === 'origin') {
+                const triggers = ['Yunnan', 'Kunming', '云南', '昆明', '弥勒', '红河'];
+                if (triggers.some(t => newData.location?.includes(t)) || triggers.some(t => newData.origin?.includes(t))) {
+                  setEasterEggActive(true);
+                } else {
+                  setEasterEggActive(false);
+                }
+              }
+              return newData;
+            });
+          };
+
+          const toggleSymptom = (value) => {
+            setFormData(prev => {
+              const exists = prev.symptoms.includes(value);
+              if (exists) return { ...prev, symptoms: prev.symptoms.filter(s => s !== value) };
+              return { ...prev, symptoms: [...prev.symptoms, value] };
+            });
+          };
+
+          const nextStep = () => {
+            if (wizardStep < 3) {
+              setWizardStep(prev => prev + 1);
+            } else {
+              generateAnalysis();
+            }
+          };
+
+          const prevStep = () => setWizardStep(prev => prev - 1);
+
+          // --- Core Logic: Analysis Engine ---
+
+          const generateAnalysis = () => {
+            setIsLoading(true);
+            
+            // Simulate processing delay
+            setTimeout(() => {
+              const bmi = calculateBMI(formData.height, formData.weight);
+              const currentMonth = new Date().getMonth() + 1;
+              const s = formData.symptoms;
+
+              // 1. Basic TCM Diagnosis & Prescription Matching
+              let diagnosisTitle = "平和质 (Balanced)";
+              let diagnosisDesc = "阴阳气血调和，体态适中、面色红润、精力充沛。";
+              // Radar Schema: [Heart, Liver, Spleen/Stomach, Lung, Kidney, Intestine]
+              let radarData = [85, 85, 85, 85, 85, 85]; 
+              let prescriptionKey = "Balanced"; // Default
+
+              // Detailed Scoring Logic (Simplified for Demo)
+              if (s.includes('失眠') || s.includes('心慌') || s.includes('心悸')) radarData[0] -= 30; // Heart
+              if (s.includes('烦躁') || s.includes('口苦') || s.includes('眼干')) radarData[1] -= 35; // Liver
+              if (s.includes('腹胀') || s.includes('食欲不振') || formData.stool === 'wet') radarData[2] -= 30; // Spleen
+              if (s.includes('咽喉干痒') || s.includes('皮肤干裂')) radarData[3] -= 25; // Lung
+              if (s.includes('腰酸') || s.includes('手脚冰凉') || formData.nightUrine > 1) radarData[4] -= 35; // Kidney
+              if (formData.stool !== 'normal' || formData.breath !== 'none' || s.includes('便秘') || s.includes('腹泻')) radarData[5] -= 40; // Intestine
+
+              // Determine Dominant Syndrome based on lowest scores or key symptoms
+              if (s.includes('乏力') || s.includes('自汗')) {
+                diagnosisTitle = "气虚质 (Qi Deficiency)";
+                diagnosisDesc = "元气不足，容易疲乏，精神不振，易出汗。";
+                prescriptionKey = "QiDeficiency";
+              } else if (s.includes('手脚冰凉') || s.includes('怕冷')) {
+                diagnosisTitle = "阳虚质 (Yang Deficiency)";
+                diagnosisDesc = "阳气不足，畏寒怕冷，手足不温，喜热饮食。";
+                prescriptionKey = "YangDeficiency";
+              } else if (s.includes('口苦') || s.includes('烦躁')) {
+                diagnosisTitle = "肝火旺 (Liver Fire)";
+                diagnosisDesc = "肝气郁结化火，表现为急躁易怒，头晕胀痛，目赤口苦。";
+                prescriptionKey = "LiverFire";
+              } else if (s.includes('肢体乏力') || s.includes('四肢沉重') || formData.stool === 'wet') {
+                diagnosisTitle = "痰湿质 (Phlegm-Dampness)";
+                diagnosisDesc = "湿浊内蕴，身重不爽，皮肤油脂较多，大便粘滞。";
+                prescriptionKey = "PhlegmDamp";
+              } else if (s.includes('失眠') && (s.includes('心慌') || s.includes('心悸'))) {
+                 diagnosisTitle = "心神不宁 (Restless Spirit)";
+                 diagnosisDesc = "心血不足或虚火内扰，神志不宁，睡眠质量差。";
+                 prescriptionKey = "Restless";
+              }
+
+              // Fetch the full prescription object
+              const selectedPrescription = prescriptionDatabase[prescriptionKey] || prescriptionDatabase["Balanced"];
+
+              // 2. Golden Soup Recommendation
+              const recommendSoup = () => {
+                // Priority 1: Symptom Match
+                for (const soup of goldenSoupMenu) {
+                  const match = soup.symptoms.some(tag => s.includes(tag));
+                  if (match && soup.id !== "GS_009") return soup; 
+                }
+                // Priority 2: Seasonal Match
+                const seasonalSoup = goldenSoupMenu.find(s => s.season.includes(currentMonth));
+                if (seasonalSoup) return seasonalSoup;
+                // Priority 3: Fallback Signature
+                return goldenSoupMenu.find(s => s.id === "GS_009");
+              };
+
+              const selectedSoup = recommendSoup();
+
+              setReport({
+                diagnosisTitle,
+                diagnosisDesc,
+                radarData, // Now has 6 values
+                bmi,
+                prescription: selectedPrescription,
+                soup: selectedSoup,
+                timestamp: new Date().toLocaleDateString()
+              });
+
+              setIsLoading(false);
+              setAppState('report');
+            }, 2000);
+          };
+
+          // --- Render Helpers ---
+
+          const renderIntro = () => (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-black text-neon-green p-6 relative overflow-hidden font-sans">
+              <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#00FF41 1px, transparent 1px), linear-gradient(90deg, #00FF41 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+              
+              <div className="z-10 text-center max-w-sm w-full space-y-10 animate-fadeIn">
+                
+                <div className="space-y-3">
+                  <BrandLogo size="text-6xl" center={true} />
+                  <div className="flex items-center justify-center gap-4 opacity-80">
+                     <div className="h-[1px] w-12 bg-neon-green/50"></div>
+                     <p className="text-xs uppercase tracking-[0.4em] font-bold text-gray-400">赛博中医 | CYBER TCM</p>
+                     <div className="h-[1px] w-12 bg-neon-green/50"></div>
+                  </div>
+                </div>
+                
+                <div className="bg-zinc-900/80 border border-zinc-800 p-2 rounded-2xl backdrop-blur-md shadow-2xl">
+                  <div className="flex gap-2">
+                    <button onClick={() => handleModeToggle('online')} className={`flex-1 flex items-center justify-center py-4 rounded-xl text-sm font-bold transition-all duration-300 ${mode === 'online' ? 'bg-neon-green text-black shadow-[0_0_20px_rgba(0,255,65,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}>
+                      <Zap size={18} className="mr-2" /> 在线诊断
+                    </button>
+                    <button onClick={() => handleModeToggle('offline')} className={`flex-1 flex items-center justify-center py-4 rounded-xl text-sm font-bold transition-all duration-300 ${mode === 'offline' ? 'bg-zinc-700 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}>
+                      <Shield size={18} className="mr-2" /> 私密离线
+                    </button>
+                  </div>
+                </div>
+
+                <div className="text-left space-y-3">
+                  <div className="flex items-center justify-between px-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Member Authenticator</label>
+                    {isMember && <span className="text-xs text-amber-500 font-bold flex items-center animate-bounce"><Share2 size={12} className="mr-1"/> 核心数据库已就绪</span>}
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <input type="text" placeholder="Guest ID: #7728..." className="bg-zinc-900 border border-zinc-800 text-white px-5 py-4 rounded-xl w-full text-base focus:outline-none focus:border-neon-green focus:bg-black transition-all font-mono shadow-inner" value={memberId} onChange={(e) => setMemberId(e.target.value)} />
+                    </div>
+                    <button onClick={handleMembership} className={`px-6 rounded-xl border-2 transition-all duration-500 flex items-center justify-center ${isMember ? 'bg-amber-500 border-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'border-zinc-800 text-gray-500 hover:border-neon-green hover:text-neon-green'}`}>
+                      {isMember ? <Unlock size={24} /> : <Lock size={24} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <button onClick={() => setAppState('wizard')} className="w-full bg-neon-green hover:bg-green-400 text-black font-black py-6 rounded-2xl flex items-center justify-center text-lg tracking-[0.2em] transition-all transform active:scale-[0.98] shadow-[0_10px_40px_rgba(0,255,65,0.4)] group border-2 border-transparent hover:border-white">
+                    START DIAGNOSIS <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                  </button>
+                  <p className="mt-8 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-60">System Status: Cloud Link Stable // 01001101</p>
+                </div>
+              </div>
+            </div>
+          );
+
+          const renderWizard = () => (
+            <div className="min-h-screen bg-zinc-950 text-gray-200 flex flex-col font-sans">
+              <div className="border-b border-gray-800 p-4 flex justify-between items-center bg-black sticky top-0 z-20">
+                <BrandLogo size="text-xl" />
+                <div className="flex gap-1">
+                  {[1,2,3].map(step => (
+                    <div key={step} className={`h-1.5 w-8 rounded-full ${step <= wizardStep ? 'bg-neon-green shadow-[0_0_8px_rgba(0,255,65,0.5)]' : 'bg-zinc-800'}`} />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full">
+                {/* ================= STEP 1: IDENTITY (PERSONAL INFO) ================= */}
+                {wizardStep === 1 && (
+                  <div className="space-y-6 animate-fadeIn pb-20">
+                    <div className="flex items-center gap-3 mb-6">
+                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">I. 个人信息 / Identity</h2>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">姓名 / Name (可匿名)</label>
+                        <input type="text" placeholder="昵称" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none transition-colors" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">性别 / Gender</label>
+                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white focus:border-neon-green outline-none appearance-none" value={formData.gender} onChange={(e) => handleInputChange('gender', e.target.value)}>
+                          <option value="male">男 (Male)</option>
+                          <option value="female">女 (Female)</option>
+                          <option value="secret">保密 (Secret)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">年龄区间 / Age (0-100)</label>
+                          <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.ageRange} onChange={(e) => handleInputChange('ageRange', e.target.value)}>
+                            {[...Array(21)].map((_, i) => (
+                              <option key={i} value={`${i * 5}-${i * 5 + 5}`}>{i*5} - {i*5+5} 岁</option>
+                            ))}
+                          </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">联系方式 / Contact</label>
+                        <div className="flex gap-2">
+                          <select className="bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white appearance-none w-1/3" value={formData.contactType} onChange={(e) => handleInputChange('contactType', e.target.value)}>
+                            <option value="Mobile">手机</option>
+                            <option value="WeChat">WeChat</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Telegram">Telegram</option>
+                            <option value="Other">其它</option>
+                          </select>
+                          <input type="text" className="flex-1 bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.contactValue} onChange={(e) => handleInputChange('contactValue', e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">微信号 / WeChat ID</label>
+                        <div className="w-full bg-zinc-950 border border-zinc-900 border-dashed p-3.5 rounded-xl text-gray-600 text-xs font-mono">
+                            {formData.contactValue ? 'SYSTEM_LINK_ACTIVE' : 'AUTO_DETECTING_DEVICE...'}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">身份证号 / ID Card (Optional)</label>
+                        <input type="text" placeholder="用于宗族数据匹配" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.idCard} onChange={(e) => handleInputChange('idCard', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">籍贯 / Ancestry</label>
+                        <input type="text" placeholder="e.g. 云南弥勒 (宗族/族谱匹配)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.origin} onChange={(e) => handleInputChange('origin', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">宗教信仰 / Religion</label>
+                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.religion} onChange={(e) => handleInputChange('religion', e.target.value)}>
+                          <option value="">无 (None)</option>
+                          <option value="Buddhism">佛教</option>
+                          <option value="Taoism">道教</option>
+                          <option value="Islam">伊斯兰教 (清真)</option>
+                          <option value="Christianity">基督教</option>
+                          <option value="Other">其他</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">常驻城市 / Location</label>
+                        <input type="text" placeholder="e.g. 昆明 (膳食结构分析)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">月均收入 / Income (RMB)</label>
+                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)}>
+                          <option value="0-3000">0 - 3000</option>
+                          <option value="3000-5000">3000 - 5000</option>
+                          <option value="5000-10000">5000 - 10000</option>
+                          <option value="10000-30000">10000 - 30000</option>
+                          <option value="30000-50000">30000 - 50000</option>
+                          <option value="50000+">50000 以上</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= STEP 2: VITAL SIGNS (COMPREHENSIVE) ================= */}
+                {wizardStep === 2 && (
+                  <div className="space-y-8 animate-fadeIn pb-20">
+                    <div className="flex items-center gap-3 mb-6">
+                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">II. 体征信息 / Vital Signs</h2>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* 1. Height (0-250cm, step 1) */}
+                      <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
+                        <div className="flex justify-between items-end">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">身高 / Height</label>
+                          <span className="text-2xl font-black text-neon-green font-mono">{formData.height}<span className="text-[10px] ml-1 text-gray-500">CM</span></span>
+                        </div>
+                        <input 
+                          type="range" min="0" max="250" step="1"
+                          value={formData.height}
+                          onChange={(e) => handleInputChange('height', e.target.value)}
+                          className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-neon-green"
+                        />
+                      </div>
+
+                      {/* 2. Weight (0-150kg, step 1) */}
+                      <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
+                        <div className="flex justify-between items-end">
+                          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">体重 / Weight</label>
+                          <span className="text-2xl font-black text-neon-green font-mono">{formData.weight}<span className="text-[10px] ml-1 text-gray-500">KG</span></span>
+                        </div>
+                        <input 
+                          type="range" min="0" max="150" step="1"
+                          value={formData.weight}
+                          onChange={(e) => handleInputChange('weight', e.target.value)}
+                          className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-neon-green"
+                        />
+                      </div>
+
+                      {/* 3-7. Sleep Section */}
+                      <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><Moon size={14} className="mr-2"/> 睡眠监测 / Sleep</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">入睡时辰 (12时辰)</label>
+                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepTime} onChange={(e) => handleInputChange('sleepTime', e.target.value)}>
+                              <option value="23:00-01:00">23:00-01:00 (子时)</option>
+                              <option value="01:00-03:00">01:00-03:00 (丑时)</option>
+                              <option value="03:00-05:00">03:00-05:00 (寅时)</option>
+                              <option value="05:00-07:00">05:00-07:00 (卯时)</option>
+                              <option value="07:00-09:00">07:00-09:00 (辰时)</option>
+                              <option value="09:00-11:00">09:00-11:00 (巳时)</option>
+                              <option value="11:00-13:00">11:00-13:00 (午时)</option>
+                              <option value="13:00-15:00">13:00-15:00 (未时)</option>
+                              <option value="15:00-17:00">15:00-17:00 (申时)</option>
+                              <option value="17:00-19:00">17:00-19:00 (酉时)</option>
+                              <option value="19:00-21:00">19:00-21:00 (戌时)</option>
+                              <option value="21:00-23:00">21:00-23:00 (亥时)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠时长 (0-24h)</label>
+                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepDuration} onChange={(e) => handleInputChange('sleepDuration', e.target.value)}>
+                              {[...Array(25)].map((_, i) => <option key={i} value={i}>{i} 小时</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠质量</label>
+                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepQuality} onChange={(e) => handleInputChange('sleepQuality', e.target.value)}>
+                              <option value="good">优质 (睡醒精神满满)</option>
+                              <option value="bad">较差 (睡醒依旧困乏)</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">打鼾情况</label>
+                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.snoring} onChange={(e) => handleInputChange('snoring', e.target.value)}>
+                              <option value="none">不打鼾</option>
+                              <option value="mild">轻微打鼾</option>
+                              <option value="moderate">中度打鼾</option>
+                              <option value="severe">重度打鼾</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">梦呓情况</label>
+                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.dreaming} onChange={(e) => handleInputChange('dreaming', e.target.value)}>
+                              <option value="none">无梦呓</option>
+                              <option value="mild">轻度梦呓</option>
+                              <option value="moderate">中度梦呓</option>
+                              <option value="severe">重度梦呓</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 8-10. Head & Face Excretion */}
+                      <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><User size={14} className="mr-2"/> 头面状态 / Head & Face</h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">口水 / Saliva</label>
+                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.drooling} onChange={(e) => handleInputChange('drooling', e.target.value)}>
+                              <option value="no">不流口水</option>
+                              <option value="yes">流口水</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">口气 / Breath</label>
+                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.breath} onChange={(e) => handleInputChange('breath', e.target.value)}>
+                              <option value="none">无口气</option>
+                              <option value="mild">轻微口气</option>
+                              <option value="moderate">中度口气</option>
+                              <option value="severe">重度口气</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">眼屎 / Eye Secr.</label>
+                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.eyeSecretion} onChange={(e) => handleInputChange('eyeSecretion', e.target.value)}>
+                              <option value="none">无眼屎</option>
+                              <option value="wet">湿性眼屎</option>
+                              <option value="dry">干性眼屎</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 11-13. Excretion */}
+                      <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><Droplet size={14} className="mr-2"/> 排泄情况 / Excretion</h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">排尿 / Urination</label>
+                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.urination} onChange={(e) => handleInputChange('urination', e.target.value)}>
+                              <option value="normal">正常</option>
+                              <option value="holding">时常性憋尿</option>
+                              <option value="freq">尿频尿急</option>
+                              <option value="diff">排尿困难</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">排便 / Stool</label>
+                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.stool} onChange={(e) => handleInputChange('stool', e.target.value)}>
+                              <option value="normal">正常</option>
+                              <option value="wet">便样湿软</option>
+                              <option value="dry">便样干硬</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 uppercase">起夜 / Night Urine</label>
+                            <div className="w-1/2 flex items-center gap-2">
+                                <input type="range" min="0" max="10" step="1" value={formData.nightUrine} onChange={(e) => handleInputChange('nightUrine', e.target.value)} className="w-full h-1 bg-zinc-800 rounded-lg accent-neon-green" />
+                                <span className="text-xs font-mono">{formData.nightUrine}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 14-15. History */}
+                      <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-4">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center"><FileText size={14} className="mr-2"/> 医疗史 / History</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] text-gray-500 uppercase">药物摄入习惯 (避免相冲)</label>
+                            <textarea placeholder="如无则填'无'，有则逐一罗列" className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white text-xs h-20" value={formData.medication} onChange={(e) => handleInputChange('medication', e.target.value)}></textarea>
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] text-gray-500 uppercase">重大疾病史 (避免相克)</label>
+                            <textarea placeholder="疾病时间及治疗结果" className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white text-xs h-20" value={formData.diseaseHistory} onChange={(e) => handleInputChange('diseaseHistory', e.target.value)}></textarea>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Female Specific */}
+                      {formData.gender === 'female' && (
+                        <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
+                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center">
+                             <Heart size={14} className="mr-2"/> 妇科监测 / Gynecology
+                           </h3>
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">周期规律性</label>
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationCycle} onChange={(e) => handleInputChange('menstruationCycle', e.target.value)}>
+                                  <option value="regular">规律 (准时)</option>
+                                  <option value="early">提前 (Early)</option>
+                                  <option value="late">错后 (Late)</option>
+                                  <option value="irregular">不定期 (Irregular)</option>
+                                  <option value="menopause">已绝经</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">经量状态</label>
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationFlow} onChange={(e) => handleInputChange('menstruationFlow', e.target.value)}>
+                                  <option value="normal">正常</option>
+                                  <option value="scanty">量少</option>
+                                  <option value="heavy">量多</option>
+                                  <option value="flooding">崩漏</option>
+                                </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">伴随症状</label>
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationPain} onChange={(e) => handleInputChange('menstruationPain', e.target.value)}>
+                                  <option value="none">无明显不适</option>
+                                  <option value="pain_mild">轻微痛经</option>
+                                  <option value="pain_severe">剧烈痛经</option>
+                                  <option value="clots">有血块</option>
+                                  <option value="distension">乳房胀痛</option>
+                                </select>
+                              </div>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= STEP 3: SOMATIC SYMPTOMS (FULL LIST) ================= */}
+                {wizardStep === 3 && (
+                  <div className="space-y-8 animate-fadeIn pb-20">
+                    <div className="flex items-center gap-3 mb-4">
+                       <div className="h-6 w-1 bg-neon-green rounded-full"></div>
+                       <h2 className="text-xl font-bold text-white tracking-tight uppercase">III. 体感信息 / Somatic</h2>
+                    </div>
+                    <p className="text-gray-500 text-xs uppercase tracking-widest mb-6 border-b border-zinc-900 pb-4">Select all relevant sensors in your biological shell:</p>
+
+                    {Object.entries(symptomOptions).map(([category, symptoms]) => (
+                      <div key={category} className="mb-10 group">
+                        <h3 className="text-neon-green text-[10px] font-black uppercase tracking-[0.3em] mb-4 flex items-center">
+                           <div className="w-1.5 h-1.5 bg-neon-green mr-2 rounded-full shadow-[0_0_8px_rgba(0,255,65,0.8)]"></div>
+                           {category === 'head' ? '头部及五官 (Head)' : 
+                            category === 'torso' ? '颈肩躯干 (Torso)' :
+                            category === 'limbs' ? '四肢 (Limbs)' :
+                            category === 'skin' ? '皮肤体表 (Skin)' : '全身状态 (Shell)'}
+                        </h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                          {symptoms.map((s) => (
+                            <button
+                              key={s.value}
+                              onClick={() => toggleSymptom(s.value)}
+                              className={`px-3 py-3 text-xs text-left rounded-xl border transition-all flex items-center justify-between group/btn ${
+                                formData.symptoms.includes(s.value)
+                                  ? 'bg-neon-green/10 border-neon-green text-neon-green shadow-sm font-bold'
+                                  : 'bg-zinc-900/50 border-zinc-800 text-gray-500 hover:border-zinc-600 hover:text-gray-300'
+                              }`}
+                            >
+                              {s.label}
+                              {formData.symptoms.includes(s.value) && <Activity size={10} className="ml-2 animate-pulse" />}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 border-t border-zinc-900 bg-black/90 backdrop-blur-xl flex justify-between z-30 sticky bottom-0">
+                <button 
+                  onClick={prevStep}
+                  disabled={wizardStep === 1}
+                  className={`px-6 py-4 rounded-xl text-xs font-bold tracking-widest uppercase transition-all ${wizardStep === 1 ? 'opacity-0 pointer-events-none' : 'bg-zinc-900 text-gray-400 hover:text-white hover:bg-zinc-800'}`}
+                >
+                  Back
+                </button>
+                <button 
+                  onClick={nextStep}
+                  className="px-8 py-4 bg-neon-green hover:bg-green-400 text-black font-black rounded-xl flex items-center shadow-[0_5px_20px_rgba(0,255,65,0.2)] active:translate-y-0.5 transition-all text-sm tracking-widest uppercase"
+                >
+                  {wizardStep === 3 ? 'FINALIZE DIAGNOSIS' : 'CONTINUE'} <ArrowRight size={18} className="ml-2"/>
+                </button>
+              </div>
+            </div>
+          );
+
+          const renderReport = () => {
+            if (!report) return null;
+
+            // Golden Soup Data & Prescription Data
+            const soup = report.soup;
+            const rx = report.prescription;
+            const isYunnan = easterEggActive;
+            
+            // Organ Labels for Hexagon
+            const organLabels = [
+              { name: "心/循环", en: "Heart", pos: "top-2 left-1/2 -translate-x-1/2" },
+              { name: "肝/情绪", en: "Liver", pos: "top-[25%] right-2" },
+              { name: "脾胃/消化", en: "Spleen", pos: "bottom-[25%] right-2" },
+              { name: "肺/呼吸", en: "Lung", pos: "bottom-2 left-1/2 -translate-x-1/2" },
+              { name: "肾/生殖", en: "Kidney", pos: "bottom-[25%] left-2" },
+              { name: "肠道/排毒", en: "Intestine", pos: "top-[25%] left-2" },
+            ];
+
+            // Detailed Organ Analysis Data
+            const organDetails = [
+              { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], color: "text-red-400", bar: "bg-red-500" },
+              { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], color: "text-green-400", bar: "bg-green-500" },
+              { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
+              { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
+              { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
+              { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
+            ];
+
+            return (
+              <div className="min-h-screen bg-black text-gray-200 p-4 md:p-8 font-sans">
+                
+                {/* REPORT HEADER */}
+                <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-800 pb-4">
+                  <div className="mb-4 md:mb-0">
+                    <h1 className="text-3xl font-bold text-white mb-1">DIAGNOSTIC REPORT</h1>
+                    <p className="text-xs text-neon-green font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} // {report.timestamp}</p>
+                  </div>
+                  <div className="text-left md:text-right">
+                    <p className="text-sm text-gray-500">StallHealth v2.3 (Full Spectrum)</p>
+                    <p className="text-xs text-gray-600">{mode.toUpperCase()} MODE</p>
+                  </div>
+                </div>
+
+                <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
+                  
+                  {/* LEFT COLUMN: DIAGNOSIS & RADAR */}
+                  <div className="space-y-6">
+                    
+                    {/* --- NEW: HEXAGON RADAR CHART --- */}
+                    <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg relative overflow-hidden">
+                       <h2 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center">
+                         <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
+                       </h2>
+                       
+                       <div className="w-full aspect-square relative flex items-center justify-center mb-4">
+                         {/* Hexagon Background Grid */}
+                         <svg viewBox="0 0 100 100" className="w-full h-full absolute">
+                             <polygon points={getHexPolygon([100,100,100,100,100,100], 40, 50, 50)} fill="none" stroke="#333" strokeWidth="0.5" />
+                             <polygon points={getHexPolygon([75,75,75,75,75,75], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
+                             <polygon points={getHexPolygon([50,50,50,50,50,50], 40, 50, 50)} fill="none" stroke="#222" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="50" y2="10" stroke="#333" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="84.6" y2="30" stroke="#333" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="84.6" y2="70" stroke="#333" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="50" y2="90" stroke="#333" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="15.4" y2="70" stroke="#333" strokeWidth="0.5" />
+                             <line x1="50" y1="50" x2="15.4" y2="30" stroke="#333" strokeWidth="0.5" />
+                             
+                             {/* Data Polygon */}
+                             <polygon 
+                               points={getHexPolygon(report.radarData, 40, 50, 50)} 
+                               fill="rgba(0, 255, 65, 0.2)" 
+                               stroke="#00FF41" 
+                               strokeWidth="1.5"
+                             />
+                             {/* Data Points */}
+                             {report.radarData.map((val, i) => {
+                               const angle = i * (Math.PI / 3) - Math.PI / 2;
+                               const r = (val / 100) * 40;
+                               const x = 50 + Math.cos(angle) * r;
+                               const y = 50 + Math.sin(angle) * r;
+                               return <circle key={i} cx={x} cy={y} r="1.5" fill="#fff" />;
+                             })}
+                         </svg>
+
+                         {/* Labels */}
+                         {organLabels.map((l, i) => (
+                           <div key={i} className={`absolute ${l.pos} text-center`}>
+                             <span className="block text-[10px] text-gray-300 font-bold">{l.name}</span>
+                             <span className="block text-[8px] text-gray-600 uppercase">{l.en}</span>
+                           </div>
+                         ))}
+                       </div>
+                       
+                       <h2 className="text-2xl text-neon-green font-bold mb-2">{report.diagnosisTitle}</h2>
+                       <p className="text-sm text-gray-400 leading-relaxed mb-4">
+                         {report.diagnosisDesc}
+                       </p>
+                    </div>
+
+                    {/* --- NEW: DETAILED ORGAN ANALYSIS --- */}
+                    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
+                       <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase flex items-center">
+                         <Layout size={14} className="mr-1"/> 脏腑功能详析 (Visceral Analysis)
+                       </h3>
+                       <div className="space-y-4">
+                         {organDetails.map((organ, idx) => (
+                           <div key={idx}>
+                             <div className="flex justify-between text-xs mb-1">
+                               <span className={`font-bold ${organ.color}`}>{organ.name}</span>
+                               <span className="text-gray-500">{organ.score}/100</span>
+                             </div>
+                             <div className="w-full bg-black rounded-full h-1.5 mb-1">
+                               <div className={`${organ.bar} h-1.5 rounded-full`} style={{ width: `${organ.score}%` }}></div>
+                             </div>
+                             <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
+                           </div>
+                         ))}
+                       </div>
+                    </div>
+
+                    {/* LBS PHARMACY (MOCK) */}
+                    <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
+                       <h3 className="text-sm text-gray-500 mb-3 flex items-center"><MapPin size={14} className="mr-1"/> 推荐药房 (LBS)</h3>
+                       <div className="bg-gray-800 h-24 w-full rounded mb-2 flex items-center justify-center text-xs text-gray-600">
+                         [地图组件: 已定位至 {formData.location || '当前城市'}]
+                       </div>
+                       <div className="text-xs text-white">
+                         <p className="font-bold">同仁堂 ({formData.location}分店)</p>
+                         <p className="text-gray-500">预估距离: 2.4km | 参考价: ¥45-60/剂</p>
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* MIDDLE & RIGHT: PRESCRIPTION & DIET */}
+                  <div className="lg:col-span-2 space-y-8">
+                    
+                    {/* HERBAL PRESCRIPTION (DETAILED) */}
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                       <div className="flex justify-between items-start mb-6">
+                         <h3 className="text-white font-bold text-lg flex items-center">
+                           <LeafIcon className="mr-2 text-neon-green" /> 
+                           StallHealth 专属方剂
+                         </h3>
+                         <div className="text-right">
+                           <p className="text-neon-green font-bold text-sm">{rx.name}</p>
+                           <p className="text-xs text-gray-500">源自：{rx.source}</p>
+                         </div>
+                       </div>
+
+                       {/* Herb Table */}
+                       <div className="overflow-x-auto mb-6">
+                         <table className="w-full text-sm text-left text-gray-400">
+                           <thead className="text-xs text-gray-500 uppercase bg-zinc-800/50">
+                             <tr>
+                               <th className="px-3 py-2 rounded-l">药材 (Name)</th>
+                               <th className="px-3 py-2">部位 (Part)</th>
+                               <th className="px-3 py-2">剂量 (Dose)</th>
+                               <th className="px-3 py-2 rounded-r">功效/成分 (Effect)</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {rx.herbs.map((herb, idx) => (
+                               <tr key={idx} className="border-b border-zinc-800 hover:bg-zinc-800/30">
+                                 <td className="px-3 py-2 font-bold text-white flex items-center">
+                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-gray-300 mr-2 min-w-[24px] text-center">{herb.role}</span>
+                                   {herb.name}
+                                 </td>
+                                 <td className="px-3 py-2">{herb.part}</td>
+                                 <td className="px-3 py-2 text-neon-green">{herb.dose}</td>
+                                 <td className="px-3 py-2 text-xs">{herb.effect}</td>
+                               </tr>
+                             ))}
+                           </tbody>
+                         </table>
+                       </div>
+
+                       {/* Instructions Grid */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
+                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><FireIcon className="w-3 h-3 mr-1"/> 食用方式 (Method)</h4>
+                            <p className="text-sm text-gray-300">{rx.instructions.method}</p>
+                          </div>
+                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
+                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Clock className="w-3 h-3 mr-1"/> 频次与时间 (Freq)</h4>
+                            <p className="text-sm text-gray-300">{rx.instructions.frequency} <span className="text-gray-500">|</span> {rx.instructions.bestTime}</p>
+                          </div>
+                          <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50 md:col-span-2">
+                            <h4 className="text-xs text-gray-500 font-bold uppercase mb-2 flex items-center"><Calendar className="w-3 h-3 mr-1"/> 食用周期 (Cycle)</h4>
+                            <p className="text-sm text-gray-300">{rx.instructions.cycle}</p>
+                          </div>
+                       </div>
+
+                       {/* Warnings */}
+                       <div className="space-y-3">
+                         <div className="flex items-start bg-yellow-900/10 p-3 rounded border border-yellow-700/30">
+                            <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 mt-0.5 shrink-0" />
+                            <div>
+                              <span className="text-yellow-500 font-bold text-xs block mb-1">药物副作用 (Side Effects)</span>
+                              <p className="text-xs text-gray-400">{rx.warnings.sideEffects}</p>
+                            </div>
+                         </div>
+                         <div className="flex items-start bg-red-900/10 p-3 rounded border border-red-700/30">
+                            <AlertTriangle className="w-4 h-4 text-red-500 mr-2 mt-0.5 shrink-0" />
+                            <div>
+                              <span className="text-red-500 font-bold text-xs block mb-1">食用禁忌 (Contraindications)</span>
+                              <p className="text-xs text-gray-400">
+                                {rx.warnings.contraindications}
+                                {formData.medication && <span className="block mt-1 text-red-400/80 font-bold">* 检测到您有服用其他药物历史，请务必间隔2小时以上服用中药。</span>}
+                              </p>
+                            </div>
+                         </div>
+                       </div>
+                    </div>
+
+                    {/* --- MASTER'S DIETARY SOLUTION (GOLDEN SOUP) --- */}
+                    <div className={`relative rounded-xl overflow-hidden border-2 transition-all duration-500 ${isYunnan ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.2)]'}`}>
+                       
+                       {/* Background Texture */}
+                       <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-900 to-amber-900/20"></div>
+                       
+                       <div className="relative p-6 md:p-8">
+                         {/* Header Badge */}
+                         <div className="flex justify-between items-start mb-6">
+                           <div>
+                             <h3 className="text-amber-500 text-xs font-bold tracking-[0.2em] uppercase mb-1">Master's Dietary Solution (主理人食疗方案)</h3>
+                             <h2 className="text-2xl md:text-3xl font-bold text-white font-serif">{soup.name}</h2>
+                             <p className="text-amber-200/80 font-serif italic mt-1">{soup.subtitle}</p>
+                           </div>
+                           <div className="bg-amber-500/10 border border-amber-500/50 text-amber-400 px-3 py-1 rounded text-xs font-bold uppercase backdrop-blur-md">
+                              {soup.action}
+                           </div>
+                         </div>
+
+                         {/* The Copywrite */}
+                         <div className="mb-8 pl-4 border-l-2 border-amber-600/50">
+                            <p className="text-xl md:text-2xl text-gray-200 font-serif leading-relaxed italic">
+                              "{soup.tagline}"
+                            </p>
+                         </div>
+
+                         {/* Ingredients Grid */}
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                           <div>
+                              <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">植萃语境 (Botanicals)</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {soup.ingredients.map((ing, i) => (
+                                  <span key={i} className="bg-black/50 text-amber-100 text-xs px-2 py-1 rounded border border-amber-900/30">
+                                    {ing}
+                                  </span>
+                                ))}
+                              </div>
+                           </div>
+                           <div>
+                              <h4 className="text-amber-600 text-[10px] uppercase font-bold mb-2">匹配逻辑 (Source)</h4>
+                              <p className="text-xs text-gray-400">
+                                {soup.id === "GS_009" 
+                                  ? "基于品牌全时调和逻辑推荐。"
+                                  : `基于您的体感症状匹配: ${soup.symptoms.filter(s => formData.symptoms.includes(s)).join('、') || "当季时令匹配"}`
+                                }
+                              </p>
+                              {soup.id === "GS_009" && (
+                                <p className="text-[10px] text-amber-500 mt-2">*Based on the 24-Flavor Herbal Standard - The Soul of Stall.</p>
+                              )}
+                           </div>
+                         </div>
+
+                         {/* Easter Egg / Coupon */}
+                         {isYunnan && (
+                           <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded mb-6 flex items-center animate-pulse">
+                              <div className="mr-3 text-2xl">🦚</div>
+                              <div>
+                                <p className="text-purple-300 font-bold text-sm">LBS BONUS DETECTED</p>
+                                <p className="text-purple-200 text-xs">检测到同源气场（云南/弥勒）! 已赠送【Stall特饮券】一张。</p>
+                              </div>
+                           </div>
+                         )}
+
+                         {/* CTA */}
+                         <button className={`w-full py-4 font-bold text-black rounded flex items-center justify-center transition-all ${isYunnan ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400'}`}>
+                            {isYunnan ? '领取奖励 & 预订此汤' : 'ORDER THIS SOUP (预订)'} <ArrowRight className="ml-2" size={18} />
+                         </button>
+
+                       </div>
+                    </div>
+
+                    <div className="flex justify-center pt-8">
+                       <button 
+                         onClick={() => window.location.reload()}
+                         className="text-gray-500 hover:text-white text-sm flex items-center"
+                       >
+                         Start New Diagnosis
+                       </button>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            );
+          };
+
+          // --- Main Render Switch ---
+          
+          if (isLoading) {
+            return (
+              <div className="min-h-screen bg-black flex flex-col items-center justify-center text-neon-green">
+                <div className="w-16 h-16 border-4 border-neon-green border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="font-mono text-sm animate-pulse">ANALYZING BIOMETRICS...</p>
+                <p className="font-mono text-xs text-gray-600 mt-2">Connecting to Knowledge Graph...</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="font-sans antialiased selection:bg-neon-green selection:text-black">
+              {appState === 'intro' && renderIntro()}
+              {appState === 'wizard' && renderWizard()}
+              {appState === 'report' && renderReport()}
+            </div>
+          );
+        }
+
+        // Icon Helpers
+        const LeafIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+        );
+        const FireIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+        );
+
+        // Mount the app
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
