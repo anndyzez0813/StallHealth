@@ -2,17 +2,19 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>StallHealth Cyber TCM | 赛博中医</title>
-    <meta name="description" content="赛博中医 - 您的数字化健康顾问">
+    <meta name="description" content="赛博中医 - 您的数字化健康顾问 | AI Powered Traditional Chinese Medicine">
     
     <!-- PWA 配置 -->
     <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2964/2964514.png">
     
+    <!-- PWA Manifest (新增) -->
+    <link rel="manifest" href="manifest.json">
+
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -23,6 +25,8 @@
                 extend: {
                     colors: {
                         'neon-green': '#00FF41',
+                        'neon-red': '#FF003C',
+                        'cyber-blue': '#00F0FF',
                     },
                     fontFamily: {
                         sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
@@ -30,12 +34,31 @@
                     },
                     animation: {
                         fadeIn: 'fadeIn 0.5s ease-out forwards',
+                        slideDown: 'slideDown 0.3s ease-out forwards',
                         pulseSlow: 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        pulseFast: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        glitch: 'glitch 1s linear infinite',
+                        shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
                     },
                     keyframes: {
                         fadeIn: {
                             'from': { opacity: '0', transform: 'translateY(10px)' },
                             'to': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        slideDown: {
+                            'from': { opacity: '0', transform: 'translate(-50%, -20px)' },
+                            'to': { opacity: '1', transform: 'translate(-50%, 0)' },
+                        },
+                        glitch: {
+                            '2%, 64%': { transform: 'translate(2px,0) skew(0deg)' },
+                            '4%, 60%': { transform: 'translate(-2px,0) skew(0deg)' },
+                            '62%': { transform: 'translate(0,0) skew(5deg)' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
                         }
                     }
                 }
@@ -45,6 +68,21 @@
 
     <!-- 引入 Babel 用于在浏览器中解析 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 注册 Service Worker (新增) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
 
     <!-- Import Map -->
     <script type="importmap">
@@ -65,6 +103,9 @@
             margin: 0;
             padding: 0;
             overscroll-behavior-y: none; /* 防止下拉刷新效果，更像App */
+            user-select: none; /* 防止文本选择，增加截图难度 */
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent; /* 移除点击高亮 */
         }
         /* 滚动条样式 */
         ::-webkit-scrollbar { width: 6px; }
@@ -72,40 +113,57 @@
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #00FF41; }
         
-        /* 针对 iOS PWA 的特殊处理 */
+        /* 针对 iOS PWA 的特殊处理：防止刘海屏遮挡 */
         @supports (-webkit-touch-callout: none) {
             body {
-                /* padding-top: env(safe-area-inset-top); */
+                padding-top: env(safe-area-inset-top);
                 padding-bottom: env(safe-area-inset-bottom);
+                min-height: 100vh;
+                min-height: -webkit-fill-available;
             }
+        }
+        
+        .cyber-card {
+            background: linear-gradient(135deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.95) 100%);
+            border: 1px solid #333;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .cyber-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: #00FF41;
+            opacity: 0.5;
+        }
+
+        /* Guest Mode Watermark */
+        .guest-watermark {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            background-image: url("data:image/svg+xml,%3Csvg width='300' height='300' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' font-size='24' fill='%23333' fill-opacity='0.2' transform='rotate(-45 150 150)' text-anchor='middle' font-family='monospace' font-weight='bold'%3EGUEST PREVIEW%3C/text%3E%3C/svg%3E");
+            opacity: 0.5;
         }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <!-- Disable Right Click -->
     <div id="root"></div>
-
-    <!-- PWA Service Worker 注册脚本 -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch(registrationError => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            });
-        }
-    </script>
 
     <!-- 主程序逻辑 -->
     <script type="text/babel" data-type="module">
         import React, { useState, useEffect, useMemo, useRef } from 'react';
         import { createRoot } from 'react-dom/client';
-        import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout, Smartphone } from 'lucide-react';
+        import { User, Activity, Thermometer, Shield, MapPin, Share2, Download, Zap, Heart, Moon, Sun, Wind, Droplet, Coffee, ArrowRight, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Clock, Calendar, AlertTriangle, FileText, Layout, Smartphone, BookOpen, UserCheck, Scroll, Award, Database, Globe, RefreshCcw, EyeOff, HardDrive, KeyRound, Footprints, History, TrendingUp, TrendingDown, Minus, CheckCircle } from 'lucide-react';
 
-        // ... existing code (Data Assets) ...
         // 1. The Golden Soup Database (Menu)
         const goldenSoupMenu = [
           {
@@ -200,7 +258,7 @@
           }
         ];
 
-        // 2. Full Symptom Tags - UPDATED
+        // 2. Full Symptom Tags
         const symptomOptions = {
           head: [
             { label: "头疼", value: "头疼" }, { label: "头晕", value: "头晕" }, { label: "眩晕", value: "眩晕" },
@@ -382,6 +440,114 @@
           }
         };
 
+        const ichData = {
+          "national": [
+            {
+              id: "ICH_001",
+              name: "石氏伤科疗法",
+              level: "国家级非遗",
+              inheritors: ["詹红生", "张国梁"],
+              lineage: "石兰亭 → 石晓山/石幼山 → 石仰山 → 石纯农 → 詹红生、张国梁",
+              techniques: "正骨整复、三色敷药、内服经验方，针药结合治颈肩腰腿痛、骨折脱位。",
+              desc: "海派中医伤科代表，以'十三科一理'为理论基础，兼收并蓄，创立了独特的伤科诊疗体系。"
+            },
+            {
+              id: "ICH_002",
+              name: "丁氏推拿疗法",
+              level: "国家级非遗",
+              inheritors: ["孙武权"],
+              lineage: "丁凤山 → 丁季峰 → 王纪松 → 孙武权",
+              techniques: "一指禅推拿、扌衮法，治脊柱、内妇儿科杂病。",
+              desc: "现代推拿奠基流派之一，手法柔和深透，强调'从阴引阳，从阳引阴'。"
+            },
+            {
+              id: "ICH_003",
+              name: "顾氏外科疗法",
+              level: "国家级非遗",
+              inheritors: ["王琛"],
+              lineage: "顾云岩 → 顾筱岩 → 顾伯华 → 陆德铭 → 王琛",
+              techniques: "外科膏丹丸散，外治内调治疮疡、乳腺、肛肠病，验方如金黄膏。",
+              desc: "海派中医外科泰斗，主张'外治之理即内治之理'，擅长治疗各类复杂疮疡。"
+            },
+            {
+              id: "ICH_004",
+              name: "古本易筋经十二势导引法",
+              level: "国家级非遗",
+              inheritors: ["严蔚冰"],
+              lineage: "严蔚冰（体系化传承）",
+              techniques: "十二势导引，强身健体、调理慢性筋骨病。",
+              desc: "源于少林，流传民间，通过伸筋拔骨、吐纳调息，达到强身健体之效。"
+            },
+            {
+              id: "ICH_005",
+              name: "陆氏针灸疗法",
+              level: "国家级非遗",
+              inheritors: ["吴焕淦", "邓海平"],
+              lineage: "陆瘦燕 → 陆焱垚 → 高正 → 邓海平、吴焕淦",
+              techniques: "特色针法、经络调理，治神经、内分泌、妇科疾病。",
+              desc: "以陆瘦燕先生为代表，注重温针灸及伏针伏灸，针刺手法细腻独特。"
+            }
+          ],
+          "city": [
+            {
+              id: "ICH_006",
+              name: "颜氏内科疗法",
+              level: "上海市级非遗",
+              inheritors: ["颜新"],
+              lineage: "颜亦鲁 → 颜德馨 → 颜新 → 颜琼枝",
+              techniques: "衡法调气血，验方'衡法冲剂'，治心脑血管、代谢病。",
+              desc: "由国医大师颜德馨创立，主张'气为百病之长，血为百病之胎'，以'衡法'著称。"
+            },
+            {
+              id: "ICH_007",
+              name: "海派膏方制作技艺",
+              level: "上海市级非遗",
+              inheritors: ["朱抗美"],
+              lineage: "朱抗美为核心传承人",
+              techniques: "'三因四透'熬制，个性化膏方调亚健康、慢性病。",
+              desc: "讲究'一人一方一锅'，工艺繁复精细，是海派中医治未病的重要手段。"
+            },
+            {
+              id: "ICH_008",
+              name: "徐氏儿科疗法",
+              level: "上海市级非遗",
+              inheritors: ["朱瑞群", "周绍荣"],
+              lineage: "徐杏圃 → 徐小圃 → 朱瑞群 → 周绍荣",
+              techniques: "小儿辨证，寒哮/热哮穴位敷贴方（二号/五号方），中药保留灌肠。",
+              desc: "以'小儿阳常有余，阴常不足'为理论，善用寒凉，同时也注重温阳潜阳。"
+            }
+          ],
+          "district": [
+            {
+              id: "ICH_009",
+              name: "朱氏内科疗法",
+              level: "静安区非遗",
+              inheritors: ["朱为康"],
+              lineage: "朱南山 → 朱小南 → 朱南孙 → 朱为康",
+              techniques: "扶正祛邪，治内科、妇科杂病，验方如朱氏调经方。",
+              desc: "以妇科见长，兼通内科，强调'师古而不泥古'，用药轻灵精准。"
+            },
+            {
+              id: "ICH_010",
+              name: "海派药膳疗法",
+              level: "静安区非遗",
+              inheritors: ["赵永汉"],
+              lineage: "孟仲法 → 赵永汉",
+              techniques: "药膳配伍，食疗养生，治慢性疲劳、术后调理。",
+              desc: "寓医于食，根据体质辨证施膳，将中医药与烹饪技艺完美结合。"
+            }
+          ]
+        };
+
+        const referenceSources = [
+          { name: "《中华人民共和国药典》 (2025版)", type: "Standard", region: "CN" },
+          { name: "WHO Traditional Medicine Strategy 2014-2023", type: "Strategy", region: "Global" },
+          { name: "PubMed Central (PMC) Clinical Data", type: "Database", region: "Global" },
+          { name: "上海中医药大学附属医院临床数据库", type: "Clinical", region: "CN/Shanghai" },
+          { name: "National Administration of TCM (NATCM)", type: "Authority", region: "CN" },
+          { name: "The Lancet: Integrative Medicine Case Studies", type: "Journal", region: "Global" }
+        ];
+
         const calculateBMI = (height, weight) => {
           if (!height || !weight) return 0;
           const hInM = height / 100;
@@ -419,10 +585,14 @@
          * ==========================================
          */
 
-        const BrandLogo = ({ size = "text-xl", center = false }) => (
+        const BrandLogo = ({ size = "text-xl", center = false, onSecretClick }) => (
           <div className={`${center ? 'flex justify-center' : 'flex'}`}>
             <h1 className={`${size} font-black tracking-tighter text-white uppercase italic`}>
-              Stall<span className="text-red-600 font-serif not-italic mx-1" style={{ textShadow: '0 0 10px rgba(220,38,38,0.5)' }}>醫</span><span className="text-neon-green not-italic">Health</span>
+              Stall<span 
+                className="text-red-600 font-serif not-italic mx-1 cursor-pointer select-none active:scale-90 transition-transform inline-block hover:text-red-500" 
+                style={{ textShadow: '0 0 10px rgba(220,38,38,0.5)' }}
+                onClick={onSecretClick}
+              >醫</span><span className="text-neon-green not-italic">Health</span>
             </h1>
           </div>
         );
@@ -434,20 +604,61 @@
          */
         function App() {
           // State: App Flow
-          const [appState, setAppState] = useState('intro'); // intro, wizard, report
+          const [appState, setAppState] = useState('intro'); // intro, wizard, report, heritage
           const [wizardStep, setWizardStep] = useState(1);
           const [mode, setMode] = useState('online'); // online, offline
           const [isMember, setIsMember] = useState(false);
           const [memberId, setMemberId] = useState('');
           const [isLoading, setIsLoading] = useState(false);
           const [deferredPrompt, setDeferredPrompt] = useState(null);
+          const [showSources, setShowSources] = useState(false); // Modal for Online Data References
+          const [showHistory, setShowHistory] = useState(false); // Modal for History Records
+          const [historyRecords, setHistoryRecords] = useState([]); // Mock History Data
+          const [loginAttempts, setLoginAttempts] = useState(0); // Track failed login attempts
+          const [showGuestLogin, setShowGuestLogin] = useState(false); // Force guest login button
+          const [inputError, setInputError] = useState(''); // Validation error message
+          
+          // New States for 2FA
+          const [showVerificationModal, setShowVerificationModal] = useState(false);
+          const [verificationCode, setVerificationCode] = useState('');
+          const [isMemberIdFormatValid, setIsMemberIdFormatValid] = useState(false);
+          
+          // New State for Report Comparison
+          const [showComparison, setShowComparison] = useState(false);
 
-          // PWA Install Prompt Listener
+          // Secret Click Counter
+          const [secretClickCount, setSecretClickCount] = useState(0);
+          
+          // Notification System (replaces alert)
+          const [notification, setNotification] = useState(null); // { message: string, type: 'success' | 'error' | 'info' }
+
+          // Dynamic Versioning Logic: Syncs with Date to simulate DB updates
+          const appVersion = useMemo(() => {
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = now.getMonth() + 1;
+              const day = now.getDate();
+              
+              // Format: v.{千位年号}.{十位个位年号}.{月}.{日}
+              // Example: 2026.01.18 -> v.2.26.1.18
+              const thousandDigit = Math.floor(year / 1000);
+              const lastTwoDigits = year % 100;
+              
+              return `v.${thousandDigit}.${lastTwoDigits}.${month}.${day}`;
+          }, []);
+
+          // Notification Auto-dismiss
+          useEffect(() => {
+            if (notification) {
+              const timer = setTimeout(() => setNotification(null), 3000);
+              return () => clearTimeout(timer);
+            }
+          }, [notification]);
+
+          // PWA Install Prompt Listener (Simulated or removed for preview environment)
           useEffect(() => {
             const handler = (e) => {
-              // Prevent the mini-infobar from appearing on mobile
               e.preventDefault();
-              // Stash the event so it can be triggered later.
               setDeferredPrompt(e);
             };
             window.addEventListener('beforeinstallprompt', handler);
@@ -456,9 +667,7 @@
 
           const handleInstallClick = () => {
              if (!deferredPrompt) return;
-             // Show the install prompt
              deferredPrompt.prompt();
-             // Wait for the user to respond to the prompt
              deferredPrompt.userChoice.then((choiceResult) => {
                if (choiceResult.outcome === 'accepted') {
                  console.log('User accepted the install prompt');
@@ -467,6 +676,21 @@
                }
                setDeferredPrompt(null);
              });
+          };
+
+          const handleSecretClick = () => {
+             if (appState !== 'intro') return; // Only allow trigger from intro
+             const newCount = secretClickCount + 1;
+             setSecretClickCount(newCount);
+             
+             if (newCount === 3) {
+                 setSecretClickCount(0);
+                 setIsLoading(true);
+                 setTimeout(() => {
+                     setAppState('heritage');
+                     setIsLoading(false);
+                 }, 800);
+             }
           };
 
           // State: Full Data Model
@@ -516,11 +740,93 @@
           // --- Handlers ---
           const handleModeToggle = (newMode) => setMode(newMode);
 
-          const handleMembership = () => {
-            if (memberId.length > 3) {
-              setIsMember(true);
-              // alert("私域会员身份已确认。正在加载名医临床数据库...");
+          // Validate Member ID: Starts with V, followed by 6 digits
+          const validateMemberId = (id) => {
+              const regex = /^V\d{6}$/;
+              return regex.test(id);
+          };
+
+          const handleMemberIdChange = (e) => {
+              const val = e.target.value.toUpperCase();
+              setMemberId(val);
+              if(inputError) setInputError('');
+              setIsMemberIdFormatValid(validateMemberId(val));
+          };
+
+          const handleLockClick = () => {
+            if (showGuestLogin && mode !== 'offline') return; 
+
+            if (isMemberIdFormatValid) {
+                // If ID format is valid, show verification modal instead of logging in directly
+                setShowVerificationModal(true);
+                setInputError('');
+            } else {
+                // Format invalid, show error
+                const newAttempts = loginAttempts + 1;
+                setLoginAttempts(newAttempts);
+                setInputError('请重新输入');
+                setMemberId(''); 
+                
+                if (newAttempts >= 3) {
+                    setShowGuestLogin(true);
+                    setInputError('验证失败次数过多，系统已锁定');
+                }
             }
+          };
+
+          const handleVerifyId = () => {
+              // Mock verification: require 6 chars length
+              if (verificationCode.length === 6) {
+                  // Success
+                  setShowVerificationModal(false);
+                  setIsMember(true);
+                  setLoginAttempts(0);
+                  setNotification({ type: 'success', message: '身份验证成功，档案已解锁' });
+                  
+                  // Simulate fetching data
+                  setFormData(prev => ({
+                      ...prev,
+                      name: "陆先生 (VIP)", 
+                      idCard: "310***********8888", 
+                      contactValue: "138****8888", 
+                      location: "上海", 
+                      ageRange: "30-35" 
+                  }));
+
+                  setHistoryRecords([
+                      { id: 'ARC-20251215-09A', date: '2025.12.15', diagnosis: '阳虚质 (Yang Deficiency)', summary: '畏寒怕冷，阳气不足，建议温补。' },
+                      { id: 'ARC-20251102-11B', date: '2025.11.02', diagnosis: '平和质 (Balanced)', summary: '阴阳调和，体质状态良好。' },
+                      { id: 'ARC-20250918-33C', date: '2025.09.18', diagnosis: '湿热质 (Damp-Heat)', summary: '面垢油光，湿热内蕴，需清热利湿。' }
+                  ]);
+              } else {
+                  // Fail (Replaced alert with custom notification)
+                  setNotification({ type: 'error', message: '验证失败：请输入正确的身份证后六位' });
+                  setVerificationCode('');
+              }
+          };
+
+          const handleGuestLogin = () => {
+              if (mode === 'offline') return; // Guest mode disabled in Offline
+              setIsMember(false);
+              setMemberId(''); // Ensure ID is clear for guest
+              setAppState('wizard'); // Direct to wizard
+          };
+
+          const handleDownload = (id) => {
+              // Simulate download action
+              const btn = document.getElementById(`btn-${id}`);
+              if(btn) {
+                  const originalText = btn.innerText;
+                  btn.innerText = "DOWNLOADING...";
+                  btn.classList.add("text-neon-green");
+                  setTimeout(() => {
+                      btn.innerText = "SAVED TO DEVICE";
+                      setTimeout(() => {
+                          btn.innerText = originalText;
+                          btn.classList.remove("text-neon-green");
+                      }, 2000);
+                  }, 1000);
+              }
           };
 
           const handleInputChange = (field, value) => {
@@ -626,14 +932,52 @@
 
               const selectedSoup = recommendSoup();
 
+              // --- Generate Report Archive ID Logic ---
+              // Rule: "ARC" + YYYYMMDD + 3 random chars (Total 14 chars with hyphens: ARC-YYYYMMDD-XXX)
+              const now = new Date();
+              const dateStr = now.getFullYear().toString() + (now.getMonth()+1).toString().padStart(2, '0') + now.getDate().toString().padStart(2, '0');
+              const randomSuffix = Math.random().toString(36).substr(2, 3).toUpperCase();
+              const reportId = `ARC-${dateStr}-${randomSuffix}`;
+
+              // --- MEMBER REGISTRATION LOGIC START ---
+              let displayMemberId;
+              let isNewRegistration = false;
+
+              // Check if user is currently a guest BUT in Online Mode with full details (Name, Contact, ID Card)
+              const canRegister = !isMember && mode === 'online' && formData.name && formData.contactValue && formData.idCard;
+
+              if (canRegister) {
+                  // Auto-assign new Member ID (Simulated)
+                  // Use a fixed seed-like logic or random for demo. 
+                  const newId = "V" + Math.floor(Math.random() * 900000 + 100000);
+                  displayMemberId = newId;
+                  isNewRegistration = true;
+                  
+                  // Auto-login the user in the background for this session
+                  // In a real app, this would post to a DB
+                  setIsMember(true);
+                  setMemberId(newId);
+              } else if (isMember) {
+                  // Already logged in
+                  displayMemberId = memberId;
+              } else {
+                  // Guest Mode: Missing key info or Offline Mode
+                  displayMemberId = 'R' + Math.random().toString().substr(2, 6);
+              }
+              // --- MEMBER REGISTRATION LOGIC END ---
+
               setReport({
                 diagnosisTitle,
                 diagnosisDesc,
-                radarData, // Now has 6 values
+                radarData, 
                 bmi,
                 prescription: selectedPrescription,
                 soup: selectedSoup,
-                timestamp: new Date().toLocaleDateString()
+                timestamp: new Date().toLocaleDateString(),
+                reportId: reportId, 
+                memberId: displayMemberId,
+                isNewRegistration: isNewRegistration, // Pass flag to report view
+                idCardLast4: formData.idCard ? formData.idCard.slice(-4) : '****' // For display binding info
               });
 
               setIsLoading(false);
@@ -643,6 +987,104 @@
 
           // --- Render Helpers ---
 
+          const renderHistoryModal = () => (
+            <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-xl">
+                <div className="bg-zinc-900 border border-neon-green p-6 rounded-2xl max-w-lg w-full shadow-[0_0_50px_rgba(0,255,65,0.2)] relative">
+                    <button 
+                        onClick={() => setShowHistory(false)}
+                        className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                    >
+                        ✕
+                    </button>
+                    
+                    <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+                        <FileText className="text-neon-green mr-3" />
+                        MEDICAL HISTORY ARCHIVES
+                    </h2>
+                    <p className="text-xs text-gray-500 font-mono mb-6 uppercase tracking-widest">
+                        Member ID: {memberId} // Last 3 Records
+                    </p>
+
+                    <div className="space-y-4">
+                        {historyRecords.map((record, i) => (
+                            <div key={record.id} className="bg-black/50 p-4 rounded-xl border border-zinc-800 hover:border-neon-green/30 transition-all group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-neon-green font-bold text-sm">{record.diagnosis}</span>
+                                            <span className="text-[10px] bg-zinc-800 text-gray-400 px-1.5 py-0.5 rounded font-mono">{record.date}</span>
+                                        </div>
+                                        <p className="text-xs text-gray-400">{record.summary}</p>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center mt-3 pt-3 border-t border-zinc-800/50">
+                                    <span className="text-[10px] text-zinc-600 font-mono">{record.id}</span>
+                                    <button 
+                                        id={`btn-${record.id}`}
+                                        onClick={() => handleDownload(record.id)}
+                                        className="flex items-center text-xs font-bold text-white hover:text-neon-green transition-colors"
+                                    >
+                                        <Download size={14} className="mr-1.5" />
+                                        DOWNLOAD REPORT
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-6 text-center">
+                        <p className="text-[10px] text-zinc-600">
+                            * Historical data is stored securely on the encrypted cloud block.<br/>
+                            * 历史数据已通过加密云区块安全存储。
+                        </p>
+                    </div>
+                </div>
+            </div>
+          );
+
+          const renderVerificationModal = () => (
+            <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-md">
+                <div className="bg-zinc-900 border border-amber-500 p-6 rounded-2xl max-w-sm w-full shadow-[0_0_50px_rgba(245,158,11,0.3)] relative">
+                    <button 
+                        onClick={() => setShowVerificationModal(false)}
+                        className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                    >
+                        ✕
+                    </button>
+                    
+                    <h2 className="text-xl font-bold text-white mb-2 flex items-center justify-center">
+                        <KeyRound className="text-amber-500 mr-2" />
+                        身份验证 (2FA)
+                    </h2>
+                    <p className="text-xs text-center text-gray-400 mb-6">
+                        为保障会员隐私，请验证身份后解锁
+                    </p>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block text-center">输入身份证后六位</label>
+                            <input 
+                                type="text"
+                                maxLength="6"
+                                placeholder="******"
+                                className="w-full bg-black border border-zinc-700 p-4 rounded-xl text-white text-center text-2xl tracking-[0.5em] focus:border-amber-500 outline-none"
+                                value={verificationCode}
+                                onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+                            />
+                            <p className="text-[10px] text-zinc-600 text-center">* 末尾X请用 * 号键代替</p>
+                        </div>
+                        
+                        <button 
+                            onClick={handleVerifyId}
+                            className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(245,158,11,0.4)]"
+                        >
+                            VERIFY & UNLOCK
+                        </button>
+                    </div>
+                </div>
+            </div>
+          );
+
           const renderIntro = () => (
             <div className="flex flex-col items-center justify-center min-h-screen bg-black text-neon-green p-6 relative overflow-hidden font-sans">
               <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#00FF41 1px, transparent 1px), linear-gradient(90deg, #00FF41 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
@@ -650,7 +1092,7 @@
               <div className="z-10 text-center max-w-sm w-full space-y-10 animate-fadeIn">
                 
                 <div className="space-y-3">
-                  <BrandLogo size="text-6xl" center={true} />
+                  <BrandLogo size="text-6xl" center={true} onSecretClick={handleSecretClick} />
                   <div className="flex items-center justify-center gap-4 opacity-80">
                       <div className="h-[1px] w-12 bg-neon-green/50"></div>
                       <p className="text-xs uppercase tracking-[0.4em] font-bold text-gray-400">赛博中医 | CYBER TCM</p>
@@ -677,34 +1119,103 @@
                       <Shield size={18} className="mr-2" /> 私密离线
                     </button>
                   </div>
+                  
+                  {/* Offline Mode Alert */}
+                  {mode === 'offline' && (
+                      <div className="mt-2 mx-1 p-2 bg-red-900/20 border border-red-800/50 rounded-lg flex items-start gap-2">
+                          <Lock className="text-red-500 shrink-0 mt-0.5" size={14} />
+                          <p className="text-[10px] text-red-300 text-left leading-tight">
+                              <span className="font-bold block mb-1">SECURE OFFLINE CORE ENABLED</span>
+                              仅限会员。数据仅存储于本地设备，禁止上传服务器。<br/>未获得会员编码游客无法登陆。
+                          </p>
+                      </div>
+                  )}
                 </div>
 
                 <div className="text-left space-y-3">
                   <div className="flex items-center justify-between px-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Member Authenticator</label>
-                    {isMember && <span className="text-xs text-amber-500 font-bold flex items-center animate-bounce"><Share2 size={12} className="mr-1"/> 核心数据库已就绪</span>}
+                    {isMember && (
+                        <span className="text-[10px] font-bold flex items-center animate-pulse whitespace-nowrap">
+                            <Share2 size={12} className="mr-1 text-amber-500"/> 
+                            <span className="text-amber-500">核心数据库已就绪</span>
+                            &nbsp;
+                            <span className="text-cyber-blue">请点击下方查阅历史档案</span>
+                        </span>
+                    )}
                   </div>
-                  <div className="flex gap-3">
-                    <div className="relative flex-1">
-                      <input type="text" placeholder="Guest ID: #7728..." className="bg-zinc-900 border border-zinc-800 text-white px-5 py-4 rounded-xl w-full text-base focus:outline-none focus:border-neon-green focus:bg-black transition-all font-mono shadow-inner" value={memberId} onChange={(e) => setMemberId(e.target.value)} />
-                    </div>
-                    <button onClick={handleMembership} className={`px-6 rounded-xl border-2 transition-all duration-500 flex items-center justify-center ${isMember ? 'bg-amber-500 border-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'border-zinc-800 text-gray-500 hover:border-neon-green hover:text-neon-green'}`}>
-                      {isMember ? <Unlock size={24} /> : <Lock size={24} />}
-                    </button>
+                  
+                  {/* Auth Input Section */}
+                  <div className="flex flex-col gap-2">
+                      <div className="flex gap-3">
+                        {/* Guest Login Button Logic: HIDE if Offline Mode */}
+                        {showGuestLogin && mode !== 'offline' ? (
+                            <button 
+                                onClick={handleGuestLogin}
+                                className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white py-4 rounded-xl font-bold flex items-center justify-center animate-pulse"
+                            >
+                                <EyeOff size={20} className="mr-2" /> 以游客模式登陆 (Guest Mode)
+                            </button>
+                        ) : (
+                            <>
+                                <div className="relative flex-1">
+                                  <input 
+                                    type="text" 
+                                    placeholder={mode === 'offline' ? "ENTER MEMBER ID TO UNLOCK" : "ID: V123456..."} 
+                                    className={`bg-zinc-900 border ${inputError ? 'border-red-500 animate-shake' : 'border-zinc-800'} text-white px-5 py-4 rounded-xl w-full text-base focus:outline-none focus:border-neon-green focus:bg-black transition-all font-mono shadow-inner ${mode === 'offline' ? 'border-red-900/50 focus:border-red-500 placeholder-red-900/50' : ''}`} 
+                                    value={memberId} 
+                                    onChange={handleMemberIdChange} 
+                                  />
+                                </div>
+                                {/* Auth/Lock Button */}
+                                <button 
+                                    onClick={handleLockClick} 
+                                    className={`px-6 rounded-xl border-2 transition-all duration-500 flex items-center justify-center ${isMember ? 'bg-amber-500 border-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.5)]' : (isMemberIdFormatValid ? 'border-neon-green text-neon-green animate-pulseFast shadow-[0_0_20px_rgba(0,255,65,0.6)] scale-105' : 'border-zinc-800 text-gray-500 hover:border-neon-green hover:text-neon-green')}`}
+                                >
+                                    {isMember ? <Unlock size={24} /> : <Lock size={24} />}
+                                </button>
+                                
+                                {/* New History Button (Only shows when member authenticated) */}
+                                {isMember && (
+                                    <button 
+                                        onClick={() => setShowHistory(true)}
+                                        className="px-6 rounded-xl border-2 border-cyber-blue bg-cyber-blue text-black shadow-[0_0_15px_rgba(0,240,255,0.5)] flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+                                    >
+                                        <FileText size={24} />
+                                    </button>
+                                )}
+                            </>
+                        )}
+                      </div>
+                      {inputError && (!showGuestLogin || mode === 'offline') && (
+                          <div className="text-[10px] text-red-500 font-bold px-2 flex items-center">
+                              <AlertCircle size={10} className="mr-1" /> {inputError} {loginAttempts > 0 && `(${loginAttempts}/3)`}
+                          </div>
+                      )}
                   </div>
                 </div>
 
                 <div className="pt-6">
-                  <button onClick={() => setAppState('wizard')} className="w-full bg-neon-green hover:bg-green-400 text-black font-black py-6 rounded-2xl flex items-center justify-center text-lg tracking-[0.2em] transition-all transform active:scale-[0.98] shadow-[0_10px_40px_rgba(0,255,65,0.4)] group border-2 border-transparent hover:border-white">
-                    START DIAGNOSIS <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                  <button onClick={() => {
+                      if (isMember) {
+                          setAppState('wizard');
+                      } else {
+                          // Default action if not logged in
+                          if (mode === 'offline') {
+                              setInputError("离线模式必须验证会员身份");
+                          } else {
+                              handleGuestLogin();
+                          }
+                      }
+                  }} className={`w-full font-black py-6 rounded-2xl flex items-center justify-center text-lg tracking-[0.2em] transition-all transform active:scale-[0.98] shadow-[0_10px_40px_rgba(0,255,65,0.4)] group border-2 border-transparent hover:border-white ${mode === 'offline' && !isMember ? 'bg-zinc-800 text-gray-500 cursor-not-allowed hover:border-transparent shadow-none' : 'bg-neon-green hover:bg-green-400 text-black'}`}>
+                    {mode === 'offline' && !isMember ? 'MEMBERSHIP REQUIRED' : 'START DIAGNOSIS'} <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
                   </button>
-                  <p className="mt-8 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-60">System Status: Cloud Link Stable // 01001101</p>
+                  <p className="mt-8 text-[10px] text-gray-600 font-mono tracking-widest uppercase opacity-60">System Status: {mode === 'offline' ? 'LOCAL_STORAGE_ONLY' : 'CLOUD_LINK_STABLE'} // 01001101</p>
                 </div>
               </div>
             </div>
           );
 
-          // ... existing code (renderWizard, renderReport) ...
           const renderWizard = () => (
             <div className="min-h-screen bg-zinc-950 text-gray-200 flex flex-col font-sans">
               <div className="border-b border-gray-800 p-4 flex justify-between items-center bg-black sticky top-0 z-20">
@@ -723,87 +1234,231 @@
                     <div className="flex items-center gap-3 mb-6">
                         <div className="h-6 w-1 bg-neon-green rounded-full"></div>
                         <h2 className="text-xl font-bold text-white tracking-tight uppercase">I. 个人信息 / Identity</h2>
+                        {isMember ? (
+                            <span className="text-xs bg-amber-900/30 text-amber-500 border border-amber-700/50 px-2 py-1 rounded flex items-center">
+                                <UserCheck size={10} className="mr-1" /> 会员档案已加载
+                            </span>
+                        ) : (
+                            (!isMember || mode === 'offline') && (
+                                <span className="text-xs bg-zinc-800 text-gray-400 px-2 py-1 rounded border border-zinc-700 flex items-center">
+                                    {mode === 'offline' ? <Shield size={10} className="mr-1" /> : <Footprints size={10} className="mr-1" />}
+                                    {mode === 'offline' ? '隐私保护模式已开启' : '游客预览模式'}
+                                </span>
+                            )
+                        )}
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* 姓名：会员模式下锁定 */}
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">姓名 / Name (可匿名)</label>
-                        <input type="text" placeholder="昵称" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none transition-colors" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} />
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1 flex justify-between">
+                            <span>姓名 / Name <span className="text-neon-red">*</span></span>
+                            {isMember && <Lock size={10} className="text-amber-500" />}
+                        </label>
+                        <input 
+                            type="text" 
+                            placeholder={mode === 'offline' && !isMember ? "会员专享" : (mode === 'offline' ? "无需实名" : "输入以绑定唯一会员档案")} 
+                            // 逻辑修改：如果是会员(isMember)则锁定，离线模式如果是非会员也无法输入(实际上进不来wizard但做双重保险)
+                            disabled={isMember}
+                            className={`w-full bg-zinc-900 border p-3.5 rounded-xl text-white focus:border-neon-green outline-none transition-colors 
+                                ${isMember ? 'border-amber-900/50 text-amber-500 cursor-not-allowed opacity-80' : 'border-zinc-800'}
+                            `}
+                            value={formData.name} 
+                            onChange={(e) => handleInputChange('name', e.target.value)} 
+                        />
                       </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">性别 / Gender</label>
-                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white focus:border-neon-green outline-none appearance-none" value={formData.gender} onChange={(e) => handleInputChange('gender', e.target.value)}>
-                          <option value="male">男 (Male)</option>
-                          <option value="female">女 (Female)</option>
-                          <option value="secret">保密 (Secret)</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">年龄区间 / Age (0-100)</label>
-                          <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.ageRange} onChange={(e) => handleInputChange('ageRange', e.target.value)}>
-                            {[...Array(21)].map((_, i) => (
-                              <option key={i} value={`${i * 5}-${i * 5 + 5}`}>{i*5} - {i*5+5} 岁</option>
-                            ))}
-                          </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">联系方式 / Contact</label>
-                        <div className="flex gap-2">
-                          <select className="bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white appearance-none w-1/3" value={formData.contactType} onChange={(e) => handleInputChange('contactType', e.target.value)}>
-                            <option value="Mobile">手机</option>
-                            <option value="WeChat">WeChat</option>
-                            <option value="WhatsApp">WhatsApp</option>
-                            <option value="Telegram">Telegram</option>
-                            <option value="Other">其它</option>
-                          </select>
-                          <input type="text" className="flex-1 bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.contactValue} onChange={(e) => handleInputChange('contactValue', e.target.value)} />
+                        <div className="relative w-full">
+                            <select 
+                                // 会员可以修改性别吗？通常也是核心档案，这里假设可以修改或者您可以选择锁定
+                                className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white focus:border-neon-green outline-none appearance-none pr-10" 
+                                value={formData.gender} 
+                                onChange={(e) => handleInputChange('gender', e.target.value)}
+                            >
+                              <option value="male">男 (Male)</option>
+                              <option value="female">女 (Female)</option>
+                              <option value="secret">保密 (Secret)</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <ChevronDown size={16} />
+                            </div>
                         </div>
                       </div>
+
+                      <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">年龄区间 / Age (0-100)</label>
+                          <div className="relative w-full">
+                              <select 
+                                className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none pr-10" 
+                                value={formData.ageRange} 
+                                onChange={(e) => handleInputChange('ageRange', e.target.value)}
+                              >
+                                {[...Array(21)].map((_, i) => (
+                                  <option key={i} value={`${i * 5}-${i * 5 + 5}`}>{i*5} - {i*5+5} 岁</option>
+                                ))}
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                  <ChevronDown size={16} />
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">联系方式 / Contact <span className="text-neon-red">*</span></label>
+                        <div className={`flex gap-2`}>
+                          <div className="relative w-1/3">
+                              <select 
+                                className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white appearance-none pr-8" 
+                                value={formData.contactType} 
+                                onChange={(e) => handleInputChange('contactType', e.target.value)}
+                              >
+                                <option value="Mobile">手机</option>
+                                <option value="WeChat">WeChat</option>
+                                <option value="WhatsApp">WhatsApp</option>
+                                <option value="Telegram">Telegram</option>
+                                <option value="Other">其它</option>
+                              </select>
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                  <ChevronDown size={12} />
+                              </div>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder={mode === 'offline' ? "未授权" : "输入以绑定唯一会员档案"}
+                            disabled={mode === 'offline'}
+                            className={`flex-1 bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none ${mode === 'offline' ? 'opacity-30 cursor-not-allowed select-none' : ''}`} 
+                            value={formData.contactValue} 
+                            onChange={(e) => handleInputChange('contactValue', e.target.value)} 
+                          />
+                        </div>
+                      </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">微信号 / WeChat ID</label>
                         <div className="w-full bg-zinc-950 border border-zinc-900 border-dashed p-3.5 rounded-xl text-gray-600 text-xs font-mono">
-                            {formData.contactValue ? 'SYSTEM_LINK_ACTIVE' : 'AUTO_DETECTING_DEVICE...'}
+                            {mode === 'offline' ? 'DEVICE_ID_MASKED_FOR_PRIVACY' : (formData.contactValue ? 'SYSTEM_LINK_ACTIVE' : 'AUTO_DETECTING_DEVICE...')}
                         </div>
                       </div>
+
+                      {/* 身份证：会员模式下锁定 */}
                       <div className="space-y-1.5">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">身份证号 / ID Card (Optional)</label>
-                        <input type="text" placeholder="用于宗族数据匹配" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.idCard} onChange={(e) => handleInputChange('idCard', e.target.value)} />
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1 flex justify-between">
+                            <span>身份证号 / ID Card <span className="text-neon-red">*</span></span>
+                            {isMember && <Lock size={10} className="text-amber-500" />}
+                        </label>
+                        <input 
+                            type="text" 
+                            disabled={isMember}
+                            placeholder={mode === 'offline' && !isMember ? "会员专享" : "输入以绑定唯一会员档案"} 
+                            className={`w-full bg-zinc-900 border p-3.5 rounded-xl text-white focus:border-neon-green outline-none 
+                                ${isMember ? 'border-amber-900/50 text-amber-500 cursor-not-allowed opacity-80' : 'border-zinc-800'}
+                            `}
+                            value={formData.idCard} 
+                            onChange={(e) => handleInputChange('idCard', e.target.value)} 
+                        />
                       </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">籍贯 / Ancestry</label>
                         <input type="text" placeholder="e.g. 云南弥勒 (宗族/族谱匹配)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.origin} onChange={(e) => handleInputChange('origin', e.target.value)} />
                       </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">宗教信仰 / Religion</label>
-                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.religion} onChange={(e) => handleInputChange('religion', e.target.value)}>
-                          <option value="">无 (None)</option>
-                          <option value="Buddhism">佛教</option>
-                          <option value="Taoism">道教</option>
-                          <option value="Islam">伊斯兰教 (清真)</option>
-                          <option value="Christianity">基督教</option>
-                          <option value="Other">其他</option>
-                        </select>
+                        <div className="relative w-full">
+                            <select 
+                                className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none pr-10" 
+                                value={formData.religion} 
+                                onChange={(e) => handleInputChange('religion', e.target.value)}
+                            >
+                              <option value="">无 (None)</option>
+                              <option value="Buddhism">佛教</option>
+                              <option value="Taoism">道教</option>
+                              <option value="Islam">伊斯兰教 (清真)</option>
+                              <option value="Christianity">基督教</option>
+                              <option value="Other">其他</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <ChevronDown size={16} />
+                            </div>
+                        </div>
                       </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">常驻城市 / Location</label>
-                        <input type="text" placeholder="e.g. 昆明 (膳食结构分析)" className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" value={formData.location} onChange={(e) => handleInputChange('location', e.target.value)} />
+                        <input 
+                            type="text" 
+                            placeholder="e.g. 昆明 (膳食结构分析)" 
+                            className="w-full bg-zinc-900 border border-zinc-800 p-3.5 rounded-xl text-white focus:border-neon-green outline-none" 
+                            value={formData.location} 
+                            onChange={(e) => handleInputChange('location', e.target.value)} 
+                        />
                       </div>
+
                       <div className="space-y-1.5">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">月均收入 / Income (RMB)</label>
-                        <select className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none" value={formData.income} onChange={(e) => handleInputChange('income', e.target.value)}>
-                          <option value="0-3000">0 - 3000</option>
-                          <option value="3000-5000">3000 - 5000</option>
-                          <option value="5000-10000">5000 - 10000</option>
-                          <option value="10000-30000">10000 - 30000</option>
-                          <option value="30000-50000">30000 - 50000</option>
-                          <option value="50000+">50000 以上</option>
-                        </select>
+                        <div className="relative w-full">
+                            <select 
+                                className="w-full bg-zinc-900 border border-zinc-700 p-3.5 rounded-xl text-white appearance-none pr-10" 
+                                value={formData.income} 
+                                onChange={(e) => handleInputChange('income', e.target.value)}
+                            >
+                              <option value="0-3000">0 - 3000</option>
+                              <option value="3000-5000">3000 - 5000</option>
+                              <option value="5000-10000">5000 - 10000</option>
+                              <option value="10000-30000">10000 - 30000</option>
+                              <option value="30000-50000">30000 - 50000</option>
+                              <option value="50000+">50000 以上</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <ChevronDown size={16} />
+                            </div>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Visual Helper for Registration / Status */}
+                    {!isMember && mode === 'online' && (
+                        <div className="mt-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-start gap-3">
+                            <Activity className="text-neon-green shrink-0 mt-0.5" size={16} />
+                            <div>
+                                <p className="text-xs text-gray-300 font-bold">新用户注册提示</p>
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                    完整填写 <span className="text-white">姓名、联系方式、身份证号</span> 三项信息，系统将在生成报告时自动为您分配永久会员编码。否则将以游客身份生成临时报告。
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {isMember && (
+                        <div className="mt-4 p-3 bg-amber-900/10 border border-amber-800/30 rounded-lg flex items-start gap-3">
+                            <UserCheck className="text-amber-500 shrink-0 mt-0.5" size={16} />
+                            <div>
+                                <p className="text-xs text-amber-500 font-bold">会员资料更新模式</p>
+                                <p className="text-[10px] text-amber-200/60 mt-1">
+                                    您的核心身份信息（姓名、身份证）已锁定。您可以随时更新下方的生活状态信息（如常驻地、收入等），以便系统为您提供更精准的当期诊断。
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {mode === 'offline' && isMember && (
+                        <div className="mt-4 p-3 bg-red-900/20 border border-red-800/30 rounded-lg flex items-start gap-3">
+                            <HardDrive className="text-red-500 shrink-0 mt-0.5" size={16} />
+                            <div>
+                                <p className="text-xs text-red-400 font-bold">私密离线模式运行中</p>
+                                <p className="text-[10px] text-red-300/60 mt-1">
+                                    所有输入数据及生成报告仅保留在当前设备内存中，不会同步至云端服务器。
+                                </p>
+                            </div>
+                        </div>
+                    )}
                   </div>
                 )}
-
-                {/* ================= STEP 2: VITAL SIGNS (COMPREHENSIVE) ================= */}
+                
+                {/* Step 2 */}
                 {wizardStep === 2 && (
                   <div className="space-y-8 animate-fadeIn pb-20">
                     <div className="flex items-center gap-3 mb-6">
@@ -812,7 +1467,6 @@
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* 1. Height (0-250cm, step 1) */}
                       <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
                         <div className="flex justify-between items-end">
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">身高 / Height</label>
@@ -825,8 +1479,7 @@
                           className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-neon-green"
                         />
                       </div>
-
-                      {/* 2. Weight (0-150kg, step 1) */}
+                      
                       <div className="bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
                         <div className="flex justify-between items-end">
                           <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">体重 / Weight</label>
@@ -846,51 +1499,76 @@
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">入睡时辰 (12时辰)</label>
-                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepTime} onChange={(e) => handleInputChange('sleepTime', e.target.value)}>
-                              <option value="23:00-01:00">23:00-01:00 (子时)</option>
-                              <option value="01:00-03:00">01:00-03:00 (丑时)</option>
-                              <option value="03:00-05:00">03:00-05:00 (寅时)</option>
-                              <option value="05:00-07:00">05:00-07:00 (卯时)</option>
-                              <option value="07:00-09:00">07:00-09:00 (辰时)</option>
-                              <option value="09:00-11:00">09:00-11:00 (巳时)</option>
-                              <option value="11:00-13:00">11:00-13:00 (午时)</option>
-                              <option value="13:00-15:00">13:00-15:00 (未时)</option>
-                              <option value="15:00-17:00">15:00-17:00 (申时)</option>
-                              <option value="17:00-19:00">17:00-19:00 (酉时)</option>
-                              <option value="19:00-21:00">19:00-21:00 (戌时)</option>
-                              <option value="21:00-23:00">21:00-23:00 (亥时)</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none pr-10" value={formData.sleepTime} onChange={(e) => handleInputChange('sleepTime', e.target.value)}>
+                                  <option value="23:00-01:00">23:00-01:00 (子时)</option>
+                                  <option value="01:00-03:00">01:00-03:00 (丑时)</option>
+                                  <option value="03:00-05:00">03:00-05:00 (寅时)</option>
+                                  <option value="05:00-07:00">05:00-07:00 (卯时)</option>
+                                  <option value="07:00-09:00">07:00-09:00 (辰时)</option>
+                                  <option value="09:00-11:00">09:00-11:00 (巳时)</option>
+                                  <option value="11:00-13:00">11:00-13:00 (午时)</option>
+                                  <option value="13:00-15:00">13:00-15:00 (未时)</option>
+                                  <option value="15:00-17:00">15:00-17:00 (申时)</option>
+                                  <option value="17:00-19:00">17:00-19:00 (酉时)</option>
+                                  <option value="19:00-21:00">19:00-21:00 (戌时)</option>
+                                  <option value="21:00-23:00">21:00-23:00 (亥时)</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠时长 (0-24h)</label>
-                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepDuration} onChange={(e) => handleInputChange('sleepDuration', e.target.value)}>
-                              {[...Array(25)].map((_, i) => <option key={i} value={i}>{i} 小时</option>)}
-                            </select>
+                            <div className="relative w-full">
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none pr-10" value={formData.sleepDuration} onChange={(e) => handleInputChange('sleepDuration', e.target.value)}>
+                                  {[...Array(25)].map((_, i) => <option key={i} value={i}>{i} 小时</option>)}
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">睡眠质量</label>
-                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.sleepQuality} onChange={(e) => handleInputChange('sleepQuality', e.target.value)}>
-                              <option value="good">优质 (睡醒精神满满)</option>
-                              <option value="bad">较差 (睡醒依旧困乏)</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none pr-10" value={formData.sleepQuality} onChange={(e) => handleInputChange('sleepQuality', e.target.value)}>
+                                  <option value="good">优质 (睡醒精神满满)</option>
+                                  <option value="bad">较差 (睡醒依旧困乏)</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">打鼾情况</label>
-                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.snoring} onChange={(e) => handleInputChange('snoring', e.target.value)}>
-                              <option value="none">不打鼾</option>
-                              <option value="mild">轻微打鼾</option>
-                              <option value="moderate">中度打鼾</option>
-                              <option value="severe">重度打鼾</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none pr-10" value={formData.snoring} onChange={(e) => handleInputChange('snoring', e.target.value)}>
+                                  <option value="none">不打鼾</option>
+                                  <option value="mild">轻微打鼾</option>
+                                  <option value="moderate">中度打鼾</option>
+                                  <option value="severe">重度打鼾</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </div>
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">梦呓情况</label>
-                            <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.dreaming} onChange={(e) => handleInputChange('dreaming', e.target.value)}>
-                              <option value="none">无梦呓</option>
-                              <option value="mild">轻度梦呓</option>
-                              <option value="moderate">中度梦呓</option>
-                              <option value="severe">重度梦呓</option>
-                            </select>
+                            <div className="relative w-full">
+                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none pr-10" value={formData.dreaming} onChange={(e) => handleInputChange('dreaming', e.target.value)}>
+                                  <option value="none">无梦呓</option>
+                                  <option value="mild">轻度梦呓</option>
+                                  <option value="moderate">中度梦呓</option>
+                                  <option value="severe">重度梦呓</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                    <ChevronDown size={16} />
+                                </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -901,27 +1579,42 @@
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">口水 / Saliva</label>
-                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.drooling} onChange={(e) => handleInputChange('drooling', e.target.value)}>
-                              <option value="no">不流口水</option>
-                              <option value="yes">流口水</option>
-                            </select>
+                            <div className="relative w-1/2">
+                                <select className="w-full bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs appearance-none pr-8" value={formData.drooling} onChange={(e) => handleInputChange('drooling', e.target.value)}>
+                                  <option value="no">不流口水</option>
+                                  <option value="yes">流口水</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">口气 / Breath</label>
-                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.breath} onChange={(e) => handleInputChange('breath', e.target.value)}>
-                              <option value="none">无口气</option>
-                              <option value="mild">轻微口气</option>
-                              <option value="moderate">中度口气</option>
-                              <option value="severe">重度口气</option>
-                            </select>
+                            <div className="relative w-1/2">
+                                <select className="w-full bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs appearance-none pr-8" value={formData.breath} onChange={(e) => handleInputChange('breath', e.target.value)}>
+                                  <option value="none">无口气</option>
+                                  <option value="mild">轻微口气</option>
+                                  <option value="moderate">中度口气</option>
+                                  <option value="severe">重度口气</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">眼屎 / Eye Secr.</label>
-                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.eyeSecretion} onChange={(e) => handleInputChange('eyeSecretion', e.target.value)}>
-                              <option value="none">无眼屎</option>
-                              <option value="wet">湿性眼屎</option>
-                              <option value="dry">干性眼屎</option>
-                            </select>
+                            <div className="relative w-1/2">
+                                <select className="w-full bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs appearance-none pr-8" value={formData.eyeSecretion} onChange={(e) => handleInputChange('eyeSecretion', e.target.value)}>
+                                  <option value="none">无眼屎</option>
+                                  <option value="wet">湿性眼屎</option>
+                                  <option value="dry">干性眼屎</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -932,20 +1625,30 @@
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">排尿 / Urination</label>
-                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.urination} onChange={(e) => handleInputChange('urination', e.target.value)}>
-                              <option value="normal">正常</option>
-                              <option value="holding">时常性憋尿</option>
-                              <option value="freq">尿频尿急</option>
-                              <option value="diff">排尿困难</option>
-                            </select>
+                            <div className="relative w-1/2">
+                                <select className="w-full bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs appearance-none pr-8" value={formData.urination} onChange={(e) => handleInputChange('urination', e.target.value)}>
+                                  <option value="normal">正常</option>
+                                  <option value="holding">时常性憋尿</option>
+                                  <option value="freq">尿频尿急</option>
+                                  <option value="diff">排尿困难</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">排便 / Stool</label>
-                            <select className="bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs w-1/2" value={formData.stool} onChange={(e) => handleInputChange('stool', e.target.value)}>
-                              <option value="normal">正常</option>
-                              <option value="wet">便样湿软</option>
-                              <option value="dry">便样干硬</option>
-                            </select>
+                            <div className="relative w-1/2">
+                                <select className="w-full bg-black border border-zinc-800 p-2 rounded-lg text-white text-xs appearance-none pr-8" value={formData.stool} onChange={(e) => handleInputChange('stool', e.target.value)}>
+                                  <option value="normal">正常</option>
+                                  <option value="wet">便样湿软</option>
+                                  <option value="dry">便样干硬</option>
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                    <ChevronDown size={14} />
+                                </div>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between">
                             <label className="text-[10px] text-gray-500 uppercase">起夜 / Night Urine</label>
@@ -974,39 +1677,54 @@
 
                       {/* Female Specific */}
                       {formData.gender === 'female' && (
-                        <div className="col-span-1 md:col-span-2 bg-zinc-900/50 border border-zinc-800 p-6 rounded-2xl space-y-6">
-                           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center">
-                             <Heart size={14} className="mr-2"/> 妇科监测 / Gynecology
+                        <div className="col-span-1 md:col-span-2 bg-violet-900/20 border border-violet-500/30 p-6 rounded-2xl space-y-6">
+                           <h3 className="text-xs font-bold text-pink-400 uppercase tracking-widest flex items-center">
+                             <Heart size={14} className="mr-2 text-pink-500"/> 妇科监测 / Gynecology
                            </h3>
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                               <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">周期规律性</label>
-                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationCycle} onChange={(e) => handleInputChange('menstruationCycle', e.target.value)}>
-                                  <option value="regular">规律 (准时)</option>
-                                  <option value="early">提前 (Early)</option>
-                                  <option value="late">错后 (Late)</option>
-                                  <option value="irregular">不定期 (Irregular)</option>
-                                  <option value="menopause">已绝经</option>
-                                </select>
+                                <label className="text-[10px] font-bold text-pink-300 uppercase tracking-widest">周期规律性</label>
+                                <div className="relative w-full">
+                                    <select className="w-full bg-black border border-pink-500/50 p-3 rounded-xl text-pink-100 appearance-none focus:border-pink-500 transition-colors pr-10" value={formData.menstruationCycle} onChange={(e) => handleInputChange('menstruationCycle', e.target.value)}>
+                                      <option value="regular">规律 (准时)</option>
+                                      <option value="early">提前 (Early)</option>
+                                      <option value="late">错后 (Late)</option>
+                                      <option value="irregular">不定期 (Irregular)</option>
+                                      <option value="menopause">已绝经</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-pink-400">
+                                        <ChevronDown size={16} />
+                                    </div>
+                                </div>
                               </div>
                               <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">经量状态</label>
-                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationFlow} onChange={(e) => handleInputChange('menstruationFlow', e.target.value)}>
-                                  <option value="normal">正常</option>
-                                  <option value="scanty">量少</option>
-                                  <option value="heavy">量多</option>
-                                  <option value="flooding">崩漏</option>
-                                </select>
+                                <label className="text-[10px] font-bold text-pink-300 uppercase tracking-widest">经量状态</label>
+                                <div className="relative w-full">
+                                    <select className="w-full bg-black border border-pink-500/50 p-3 rounded-xl text-pink-100 appearance-none focus:border-pink-500 transition-colors pr-10" value={formData.menstruationFlow} onChange={(e) => handleInputChange('menstruationFlow', e.target.value)}>
+                                      <option value="normal">正常</option>
+                                      <option value="scanty">量少</option>
+                                      <option value="heavy">量多</option>
+                                      <option value="flooding">崩漏</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-pink-400">
+                                        <ChevronDown size={16} />
+                                    </div>
+                                </div>
                               </div>
                               <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">伴随症状</label>
-                                <select className="w-full bg-black border border-zinc-800 p-3 rounded-xl text-white appearance-none" value={formData.menstruationPain} onChange={(e) => handleInputChange('menstruationPain', e.target.value)}>
-                                  <option value="none">无明显不适</option>
-                                  <option value="pain_mild">轻微痛经</option>
-                                  <option value="pain_severe">剧烈痛经</option>
-                                  <option value="clots">有血块</option>
-                                  <option value="distension">乳房胀痛</option>
-                                </select>
+                                <label className="text-[10px] font-bold text-pink-300 uppercase tracking-widest">伴随症状</label>
+                                <div className="relative w-full">
+                                    <select className="w-full bg-black border border-pink-500/50 p-3 rounded-xl text-pink-100 appearance-none focus:border-pink-500 transition-colors pr-10" value={formData.menstruationPain} onChange={(e) => handleInputChange('menstruationPain', e.target.value)}>
+                                      <option value="none">无明显不适</option>
+                                      <option value="pain_mild">轻微痛经</option>
+                                      <option value="pain_severe">剧烈痛经</option>
+                                      <option value="clots">有血块</option>
+                                      <option value="distension">乳房胀痛</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-pink-400">
+                                        <ChevronDown size={16} />
+                                    </div>
+                                </div>
                               </div>
                            </div>
                         </div>
@@ -1073,6 +1791,175 @@
             </div>
           );
 
+          // NEW: Heritage Archive View
+          const renderHeritage = () => (
+             <div className="min-h-screen bg-black text-gray-200 font-sans relative overflow-hidden">
+                {/* Background Grid */}
+                <div className="fixed inset-0 pointer-events-none opacity-20" style={{ 
+                    backgroundImage: 'linear-gradient(rgba(0, 240, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.1) 1px, transparent 1px)', 
+                    backgroundSize: '40px 40px' 
+                }}></div>
+
+                <div className="relative z-10 p-6 md:p-10 max-w-6xl mx-auto">
+                    <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 border-b border-cyber-blue/30 pb-6">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <BookOpen className="text-cyber-blue" size={32} />
+                                <h1 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase" style={{ textShadow: '0 0 10px rgba(0,240,255,0.5)' }}>
+                                    HAIPAI <span className="text-cyber-blue">ARCHIVE</span>
+                                </h1>
+                            </div>
+                            <p className="text-xs md:text-sm text-gray-400 font-mono tracking-widest uppercase">
+                                Shanghai TCM Intangible Cultural Heritage Database // {appVersion}
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => setAppState('intro')}
+                            className="mt-4 md:mt-0 px-6 py-3 border border-zinc-700 text-gray-400 hover:text-white hover:border-white rounded-none uppercase text-xs font-bold tracking-widest transition-all"
+                        >
+                            [ Close Archive ]
+                        </button>
+                    </header>
+
+                    <div className="space-y-16 pb-20">
+                        {/* Section 1: National Level */}
+                        <section className="animate-fadeIn" style={{ animationDelay: '0.1s' }}>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-1 bg-gradient-to-r from-neon-red to-transparent"></div>
+                                <h2 className="text-2xl font-bold text-white uppercase tracking-wider flex items-center">
+                                    <Award className="text-neon-red mr-3" /> 国家级非遗项目 (National Level)
+                                </h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {ichData.national.map((item) => (
+                                    <HeritageCard key={item.id} data={item} color="border-neon-red/50" shadow="shadow-neon-red/20" iconColor="text-neon-red" />
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* Section 2: City Level */}
+                        <section className="animate-fadeIn" style={{ animationDelay: '0.3s' }}>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-1 bg-gradient-to-r from-cyber-blue to-transparent"></div>
+                                <h2 className="text-2xl font-bold text-white uppercase tracking-wider flex items-center">
+                                    <Scroll className="text-cyber-blue mr-3" /> 上海市级非遗项目 (City Level)
+                                </h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {ichData.city.map((item) => (
+                                    <HeritageCard key={item.id} data={item} color="border-cyber-blue/50" shadow="shadow-cyber-blue/20" iconColor="text-cyber-blue" />
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* Section 3: District Level */}
+                        <section className="animate-fadeIn" style={{ animationDelay: '0.5s' }}>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-1 bg-gradient-to-r from-neon-green to-transparent"></div>
+                                <h2 className="text-2xl font-bold text-white uppercase tracking-wider flex items-center">
+                                    <MapPin className="text-neon-green mr-3" /> 区县级非遗项目 (District Level)
+                                </h2>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {ichData.district.map((item) => (
+                                    <HeritageCard key={item.id} data={item} color="border-neon-green/50" shadow="shadow-neon-green/20" iconColor="text-neon-green" />
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+             </div>
+          );
+
+          const HeritageCard = ({ data, color, shadow, iconColor }) => {
+              const [expanded, setExpanded] = useState(false);
+
+              return (
+                  <div 
+                    className={`cyber-card p-6 rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${expanded ? 'bg-zinc-900' : ''} ${color} ${shadow}`}
+                  >
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-xl font-bold text-white">{data.name}</h3>
+                          <div className={`text-xs px-2 py-1 bg-black/50 rounded border ${color} ${iconColor}`}>
+                              {data.id.split('_')[1]}
+                          </div>
+                      </div>
+                      
+                      <div className="mb-4">
+                          <p className="text-gray-400 text-sm line-clamp-2 h-10">{data.desc}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-4">
+                          <UserCheck size={16} className={iconColor} />
+                          <span className="text-sm font-bold text-gray-200">传承人: {data.inheritors.join('、')}</span>
+                      </div>
+
+                      {expanded && (
+                          <div className="mt-4 pt-4 border-t border-zinc-800 space-y-4 animate-fadeIn">
+                              <div>
+                                  <h4 className={`text-xs font-bold uppercase mb-1 ${iconColor}`}>传承谱系 (Lineage)</h4>
+                                  <p className="text-xs text-gray-400 font-mono leading-relaxed">{data.lineage}</p>
+                              </div>
+                              <div>
+                                  <h4 className={`text-xs font-bold uppercase mb-1 ${iconColor}`}>核心技法 (Techniques)</h4>
+                                  <p className="text-xs text-gray-400 leading-relaxed">{data.techniques}</p>
+                              </div>
+                          </div>
+                      )}
+
+                      <button 
+                        onClick={() => setExpanded(!expanded)}
+                        className={`w-full py-2 mt-2 text-xs font-bold uppercase tracking-widest border border-zinc-800 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 ${iconColor}`}
+                      >
+                          {expanded ? 'Collapse Data' : 'Access Data'} {expanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+                      </button>
+                  </div>
+              );
+          };
+
+          const renderSourcesModal = () => (
+            <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 animate-fadeIn backdrop-blur-sm">
+                <div className="bg-zinc-900 border border-neon-green/30 p-6 rounded-2xl max-w-2xl w-full shadow-[0_0_50px_rgba(0,255,65,0.1)] relative">
+                <button 
+                    onClick={() => setShowSources(false)}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-white"
+                >
+                    ✕
+                </button>
+                
+                <h2 className="text-xl font-bold text-white mb-6 flex items-center">
+                    <Activity className="text-neon-green mr-2" />
+                    DATA SOURCE REFERENCES (实时数据源)
+                </h2>
+                
+                <p className="text-xs text-gray-400 mb-6">
+                    This report is generated based on real-time cross-referencing with the following authoritative global medical databases.
+                    <br/>本报告基于以下全球权威医疗数据库实时交叉比对生成。
+                </p>
+
+                <div className="grid gap-3">
+                    {referenceSources.map((src, i) => (
+                    <div key={i} className="flex items-center justify-between bg-black/50 p-3 rounded border border-zinc-800 hover:border-neon-green/50 transition-colors group">
+                        <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 bg-neon-green rounded-full group-hover:shadow-[0_0_8px_#00FF41]"></div>
+                        <span className="text-sm text-gray-300 font-mono">{src.name}</span>
+                        </div>
+                        <div className="flex gap-2">
+                        <span className="text-[10px] bg-zinc-800 text-gray-500 px-2 py-0.5 rounded">{src.type}</span>
+                        <span className="text-[10px] bg-zinc-800 text-gray-500 px-2 py-0.5 rounded">{src.region}</span>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-zinc-800 flex justify-between items-center text-[10px] text-gray-500">
+                    <span>SYNC STATUS: <span className="text-neon-green">CONNECTED</span></span>
+                    <span>LAST UPDATE: {new Date().toLocaleTimeString()}</span>
+                </div>
+                </div>
+            </div>
+          );
+
           const renderReport = () => {
              if (!report) return null;
              // ... existing report code ...
@@ -1090,32 +1977,52 @@
                { name: "肾/生殖", en: "Kidney", pos: "bottom-[25%] left-2" },
                { name: "肠道/排毒", en: "Intestine", pos: "top-[25%] left-2" },
              ];
- 
-             // Detailed Organ Analysis Data
+
+             // Mock Previous Report Data
+             const prevReportData = {
+               diagnosisTitle: "阳虚质 (Yang Deficiency)",
+               radarData: [60, 70, 65, 80, 50, 75],
+               timestamp: "2025.12.15"
+             };
+
+             // Detailed Organ Analysis Data (With comparison logic)
              const organDetails = [
-               { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], color: "text-red-400", bar: "bg-red-500" },
-               { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], color: "text-green-400", bar: "bg-green-500" },
-               { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
-               { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
-               { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
-               { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
+               { name: "心系统", desc: "主血脉、神志。当前状态稳定，建议保持有氧运动。", score: report.radarData[0], prevScore: prevReportData.radarData[0], color: "text-red-400", bar: "bg-red-500" },
+               { name: "肝系统", desc: "主疏泄、藏血。易受情绪影响，需注意调节压力。", score: report.radarData[1], prevScore: prevReportData.radarData[1], color: "text-green-400", bar: "bg-green-500" },
+               { name: "脾胃系统", desc: "后天之本，主运化。饮食规律是关键。", score: report.radarData[2], prevScore: prevReportData.radarData[2], color: "text-yellow-400", bar: "bg-yellow-500" },
+               { name: "肺系统", desc: "主气司呼吸。注意防寒保暖，滋阴润肺。", score: report.radarData[3], prevScore: prevReportData.radarData[3], color: "text-gray-200", bar: "bg-gray-400" },
+               { name: "肾系统", desc: "先天之本，主藏精。避免熬夜，节制房事。", score: report.radarData[4], prevScore: prevReportData.radarData[4], color: "text-blue-400", bar: "bg-blue-500" },
+               { name: "肠道系统", desc: "主传导糟粕。排毒与免疫的核心，需关注饮食纤维摄入。", score: report.radarData[5], prevScore: prevReportData.radarData[5], color: "text-purple-400", bar: "bg-purple-500" },
              ];
- 
+
              return (
                <div className="min-h-screen bg-black text-gray-200 p-4 md:p-8 font-sans">
-                 
+                 {!isMember && <div className="guest-watermark"></div>}
                  {/* REPORT HEADER */}
                  <div className="max-w-4xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-gray-800 pb-4">
                    <div className="mb-4 md:mb-0">
                      <h1 className="text-3xl font-bold text-white mb-1">DIAGNOSTIC REPORT</h1>
-                     <p className="text-xs text-neon-green font-mono">ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} // {report.timestamp}</p>
+                     <p className="text-xs text-neon-green font-mono">No. {report.reportId} // {report.timestamp}</p>
                    </div>
                    <div className="text-left md:text-right">
-                     <p className="text-sm text-gray-500">StallHealth v2.3 (Full Spectrum)</p>
-                     <p className="text-xs text-gray-600">{mode.toUpperCase()} MODE</p>
+                     <p className="text-sm text-gray-500">StallHealth {appVersion} (Full Spectrum)</p>
+                     {mode === 'online' ? (
+                        <button 
+                        onClick={() => setShowSources(true)}
+                        className="text-xs text-neon-green hover:text-white transition-colors flex items-center justify-end gap-1 ml-auto"
+                        >
+                        <span className="w-2 h-2 bg-neon-green rounded-full animate-pulse"></span>
+                        ONLINE MODE (LIVE DATA)
+                        </button>
+                    ) : (
+                        <div className="text-xs text-red-400 flex items-center justify-end gap-1">
+                        <Lock size={10} />
+                        SECURE OFFLINE MODE (LOCAL)
+                        </div>
+                    )}
                    </div>
                  </div>
- 
+
                  <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
                    
                    {/* LEFT COLUMN: DIAGNOSIS & RADAR */}
@@ -1123,9 +2030,20 @@
                      
                      {/* --- NEW: HEXAGON RADAR CHART --- */}
                      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-lg relative overflow-hidden">
-                        <h2 className="text-sm font-bold text-gray-400 mb-4 uppercase tracking-widest flex items-center">
-                          <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
-                        </h2>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center">
+                              <Activity size={16} className="mr-2 text-neon-green"/> 六维健康罗盘
+                            </h2>
+                            {/* Comparison Toggle Button - Only visible for Members */}
+                            {isMember && (
+                                <button 
+                                    onClick={() => setShowComparison(!showComparison)}
+                                    className={`text-[10px] flex items-center px-2 py-1 rounded transition-colors ${showComparison ? 'bg-cyber-blue/20 text-cyber-blue border border-cyber-blue/50' : 'bg-zinc-800 text-gray-500 border border-zinc-700 hover:border-gray-500'}`}
+                                >
+                                    <History size={10} className="mr-1" /> 历史数据参照
+                                </button>
+                            )}
+                        </div>
                         
                         <div className="w-full aspect-square relative flex items-center justify-center mb-4">
                           {/* Hexagon Background Grid */}
@@ -1140,7 +2058,19 @@
                               <line x1="50" y1="50" x2="15.4" y2="70" stroke="#333" strokeWidth="0.5" />
                               <line x1="50" y1="50" x2="15.4" y2="30" stroke="#333" strokeWidth="0.5" />
                               
-                              {/* Data Polygon */}
+                              {/* Comparison Data Polygon (Previous) */}
+                              {showComparison && (
+                                  <polygon 
+                                    points={getHexPolygon(prevReportData.radarData, 40, 50, 50)} 
+                                    fill="none" 
+                                    stroke="#00F0FF" 
+                                    strokeWidth="1"
+                                    strokeDasharray="4 2"
+                                    className="animate-fadeIn"
+                                  />
+                              )}
+
+                              {/* Current Data Polygon */}
                               <polygon 
                                 points={getHexPolygon(report.radarData, 40, 50, 50)} 
                                 fill="rgba(0, 255, 65, 0.2)" 
@@ -1156,7 +2086,7 @@
                                 return <circle key={i} cx={x} cy={y} r="1.5" fill="#fff" />;
                               })}
                            </svg>
- 
+
                            {/* Labels */}
                            {organLabels.map((l, i) => (
                              <div key={i} className={`absolute ${l.pos} text-center`}>
@@ -1166,33 +2096,64 @@
                            ))}
                         </div>
                         
+                        {/* Legend for Comparison */}
+                        {showComparison && (
+                            <div className="flex justify-center gap-4 mb-4 text-[10px]">
+                                <div className="flex items-center text-neon-green font-bold">
+                                    <div className="w-3 h-0.5 bg-neon-green mr-1"></div> 本次 (Current)
+                                </div>
+                                <div className="flex items-center text-cyber-blue font-bold">
+                                    <div className="w-3 h-0.5 border-t border-dashed border-cyber-blue mr-1"></div> 上次 (Previous)
+                                </div>
+                            </div>
+                        )}
+                        
                         <h2 className="text-2xl text-neon-green font-bold mb-2">{report.diagnosisTitle}</h2>
+                        {showComparison && (
+                            <p className="text-xs text-cyber-blue mb-2 animate-fadeIn font-mono">
+                                [上次检测: {prevReportData.diagnosisTitle}]
+                            </p>
+                        )}
                         <p className="text-sm text-gray-400 leading-relaxed mb-4">
                           {report.diagnosisDesc}
                         </p>
                      </div>
- 
+
                      {/* --- NEW: DETAILED ORGAN ANALYSIS --- */}
                      <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
                         <h3 className="text-xs font-bold text-gray-500 mb-4 uppercase flex items-center">
                           <Layout size={14} className="mr-1"/> 脏腑功能详析 (Visceral Analysis)
                         </h3>
                         <div className="space-y-4">
-                          {organDetails.map((organ, idx) => (
-                            <div key={idx}>
-                              <div className="flex justify-between text-xs mb-1">
-                                <span className={`font-bold ${organ.color}`}>{organ.name}</span>
-                                <span className="text-gray-500">{organ.score}/100</span>
-                              </div>
-                              <div className="w-full bg-black rounded-full h-1.5 mb-1">
-                                <div className={`${organ.bar} h-1.5 rounded-full`} style={{ width: `${organ.score}%` }}></div>
-                              </div>
-                              <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
-                            </div>
-                          ))}
+                          {organDetails.map((organ, idx) => {
+                            const diff = organ.score - organ.prevScore;
+                            return (
+                                <div key={idx}>
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className={`font-bold ${organ.color}`}>{organ.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-gray-500">{organ.score}/100</span>
+                                        {showComparison && (
+                                            <span className={`text-[10px] font-mono flex items-center ${diff > 0 ? 'text-neon-green' : (diff < 0 ? 'text-neon-red' : 'text-gray-500')}`}>
+                                                {diff > 0 ? <TrendingUp size={10} className="mr-0.5"/> : (diff < 0 ? <TrendingDown size={10} className="mr-0.5"/> : <Minus size={10} className="mr-0.5"/>)}
+                                                {Math.abs(diff)}
+                                            </span>
+                                        )}
+                                    </div>
+                                  </div>
+                                  <div className="w-full bg-black rounded-full h-1.5 mb-1 relative">
+                                    <div className={`${organ.bar} h-1.5 rounded-full z-10 relative`} style={{ width: `${organ.score}%` }}></div>
+                                    {showComparison && (
+                                        <div className="absolute top-0 h-1.5 w-0.5 bg-cyber-blue z-20" style={{ left: `${organ.prevScore}%` }}></div>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 leading-tight">{organ.desc}</p>
+                                </div>
+                            );
+                          })}
                         </div>
                      </div>
- 
+
                      {/* LBS PHARMACY (MOCK) */}
                      <div className="bg-zinc-900 border border-zinc-800 p-4 rounded-lg">
                         <h3 className="text-sm text-gray-500 mb-3 flex items-center"><MapPin size={14} className="mr-1"/> 推荐药房 (LBS)</h3>
@@ -1205,7 +2166,7 @@
                         </div>
                      </div>
                    </div>
- 
+
                    {/* MIDDLE & RIGHT: PRESCRIPTION & DIET */}
                    <div className="lg:col-span-2 space-y-8">
                      
@@ -1221,7 +2182,7 @@
                             <p className="text-xs text-gray-500">源自：{rx.source}</p>
                           </div>
                         </div>
- 
+
                         {/* Herb Table */}
                         <div className="overflow-x-auto mb-6">
                           <table className="w-full text-sm text-left text-gray-400">
@@ -1248,7 +2209,7 @@
                             </tbody>
                           </table>
                         </div>
- 
+
                         {/* Instructions Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                            <div className="bg-zinc-800/50 p-3 rounded border border-zinc-700/50">
@@ -1264,7 +2225,7 @@
                              <p className="text-sm text-gray-300">{rx.instructions.cycle}</p>
                            </div>
                         </div>
- 
+
                         {/* Warnings */}
                         <div className="space-y-3">
                           <div className="flex items-start bg-yellow-900/10 p-3 rounded border border-yellow-700/30">
@@ -1286,7 +2247,7 @@
                           </div>
                         </div>
                      </div>
- 
+
                      {/* --- MASTER'S DIETARY SOLUTION (GOLDEN SOUP) --- */}
                      <div className={`relative rounded-xl overflow-hidden border-2 transition-all duration-500 ${isYunnan ? 'border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.3)]' : 'border-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.2)]'}`}>
                         
@@ -1305,14 +2266,14 @@
                                {soup.action}
                             </div>
                           </div>
- 
+
                           {/* The Copywrite */}
                           <div className="mb-8 pl-4 border-l-2 border-amber-600/50">
                              <p className="text-xl md:text-2xl text-gray-200 font-serif leading-relaxed italic">
                                "{soup.tagline}"
                              </p>
                           </div>
- 
+
                           {/* Ingredients Grid */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                             <div>
@@ -1338,7 +2299,7 @@
                                )}
                             </div>
                           </div>
- 
+
                           {/* Easter Egg / Coupon */}
                           {isYunnan && (
                             <div className="bg-purple-900/20 border border-purple-500/50 p-3 rounded mb-6 flex items-center animate-pulse">
@@ -1349,26 +2310,74 @@
                                </div>
                             </div>
                           )}
- 
+
                           {/* CTA */}
                           <button className={`w-full py-4 font-bold text-black rounded flex items-center justify-center transition-all ${isYunnan ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400' : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400'}`}>
                              {isYunnan ? '领取奖励 & 预订此汤' : 'ORDER THIS SOUP (预订)'} <ArrowRight className="ml-2" size={18} />
                           </button>
- 
+
                         </div>
                      </div>
- 
+
+                     {/* New Member Registration Success Prompt */}
+                     {report.isNewRegistration && (
+                        <div className="mt-8 p-6 bg-zinc-900 border-2 border-neon-green/50 rounded-xl shadow-[0_0_30px_rgba(0,255,65,0.2)] animate-pulseSlow">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-neon-green/20 p-3 rounded-full text-neon-green shrink-0">
+                                        <Shield size={32} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-white mb-2 flex items-center">
+                                            MEMBERSHIP ACTIVATED (会员已激活)
+                                            <span className="ml-2 text-[10px] bg-neon-green text-black px-2 py-0.5 rounded font-bold">ONLINE</span>
+                                        </h3>
+                                        <p className="text-sm text-gray-300 mb-2">
+                                            您的个人健康档案已成功建立，并已自动绑定身份证尾号 <span className="text-white font-mono font-bold">{report.idCardLast4}</span>。
+                                        </p>
+                                        <div className="inline-block bg-black border border-neon-green px-4 py-2 rounded text-neon-green font-mono font-bold text-lg tracking-widest">
+                                            {report.memberId}
+                                        </div>
+                                        <p className="text-xs text-neon-red font-bold mt-2 flex items-center">
+                                            <AlertCircle size={12} className="mr-1"/>
+                                            重要提示：请务必截图保存此编码，用于下次登陆及历史档案检索。
+                                        </p>
+                                    </div>
+                                </div>
+                                <button className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold uppercase tracking-widest border border-zinc-600 transition-colors">
+                                    Save ID to Device
+                                </button>
+                            </div>
+                        </div>
+                     )}
+
                      <div className="flex justify-center pt-8">
-                        <button 
-                          onClick={() => window.location.reload()}
-                          className="text-gray-500 hover:text-white text-sm flex items-center"
-                        >
-                          Start New Diagnosis
-                        </button>
+                        {!isMember ? (
+                            <button 
+                              onClick={() => window.location.reload()}
+                              className="text-red-500 hover:text-red-400 text-sm flex items-center font-bold tracking-widest"
+                            >
+                              <RefreshCcw className="mr-2 w-4 h-4"/> BURN AFTER READING (阅后即焚)
+                            </button>
+                        ) : (
+                            <button 
+                              onClick={() => window.location.reload()}
+                              className="text-gray-500 hover:text-white text-sm flex items-center"
+                            >
+                              Start New Diagnosis
+                            </button>
+                        )}
                      </div>
- 
+
                    </div>
                  </div>
+                 {/* Notification Overlay */}
+                 {notification && (
+                    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-2xl border flex items-center animate-fadeIn ${notification.type === 'error' ? 'bg-red-900/90 border-red-500 text-white' : 'bg-neon-green/90 border-neon-green text-black'}`}>
+                        {notification.type === 'error' ? <AlertCircle size={18} className="mr-2"/> : <UserCheck size={18} className="mr-2"/>}
+                        <span className="font-bold text-sm">{notification.message}</span>
+                    </div>
+                )}
                </div>
              );
           };
@@ -1390,6 +2399,19 @@
               {appState === 'intro' && renderIntro()}
               {appState === 'wizard' && renderWizard()}
               {appState === 'report' && renderReport()}
+              {appState === 'heritage' && renderHeritage()}
+              {showSources && renderSourcesModal()}
+              {showHistory && renderHistoryModal()}
+              {showVerificationModal && renderVerificationModal()}
+              {/* Global Notification */}
+              {notification && (
+                  <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl border flex items-center animate-slideDown ${notification.type === 'error' ? 'bg-red-950/90 border-red-500 text-white shadow-red-900/50' : 'bg-zinc-900/90 border-neon-green text-neon-green shadow-neon-green/30'}`}>
+                      {notification.type === 'error' ? <AlertCircle size={20} className="mr-3 text-red-500"/> : <CheckCircle size={20} className="mr-3 text-neon-green"/>}
+                      <div>
+                          <p className="font-bold text-sm">{notification.message}</p>
+                      </div>
+                  </div>
+              )}
             </div>
           );
         }
